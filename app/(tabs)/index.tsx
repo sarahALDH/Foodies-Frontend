@@ -1,15 +1,32 @@
-import { StyleSheet, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ImageBackground,
+} from "react-native";
 import { router } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { Image } from "expo-image";
 
 export default function HomeScreen() {
   const tintColor = useThemeColor({}, "tint");
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.content}>
+    <ImageBackground
+      source={require("@/assets/images/background.png")}
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("@/assets/images/logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+        </View>
         <ThemedText type="title" style={styles.title}>
           Welcome to Foodiez
         </ThemedText>
@@ -44,8 +61,8 @@ export default function HomeScreen() {
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>
-      </ThemedView>
-    </ThemedView>
+      </View>
+    </ImageBackground>
   );
 }
 
@@ -58,13 +75,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    backgroundColor: "transparent",
+  },
+  logoContainer: {
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "#83ab64",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: -70,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  logo: {
+    width: 270,
+    height: 270,
   },
   title: {
     marginBottom: 12,
     textAlign: "center",
   },
   subtitle: {
-    marginBottom: 48,
+    marginBottom: 40,
     textAlign: "center",
     opacity: 0.7,
     fontSize: 16,
