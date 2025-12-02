@@ -9,9 +9,25 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { Image } from "expo-image";
+import { PageSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 export default function HomeScreen() {
   const tintColor = useThemeColor({}, "tint");
+  const isLoading = useNavigationLoading();
+
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <PageSkeleton />
+      </ImageBackground>
+    );
+  }
 
   return (
     <ImageBackground

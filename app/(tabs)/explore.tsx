@@ -1,7 +1,24 @@
 import { StyleSheet, ScrollView, View, ImageBackground } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { PageSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 export default function TabTwoScreen() {
+  const isLoading = useNavigationLoading();
+
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <PageSkeleton />
+      </ImageBackground>
+    );
+  }
+
   return (
     <ImageBackground
       source={require("@/assets/images/background.png")}

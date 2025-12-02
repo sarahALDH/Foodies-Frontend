@@ -10,6 +10,8 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { SearchSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock search results
 const mockRecipes = [
@@ -24,6 +26,7 @@ const mockRecipes = [
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<typeof mockRecipes>([]);
+  const isLoading = useNavigationLoading();
 
   const textColor = useThemeColor({}, "text");
   const iconColor = useThemeColor({}, "icon");
@@ -46,6 +49,19 @@ export default function SearchScreen() {
     setSearchQuery("");
     setSearchResults([]);
   };
+
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <SearchSkeleton />
+      </ImageBackground>
+    );
+  }
 
   return (
     <ImageBackground

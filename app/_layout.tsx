@@ -2,6 +2,7 @@ import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
+  CardStyleInterpolators,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -22,20 +23,48 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack
           initialRouteName="sign-in"
-          screenOptions={{ headerShown: false }}
+          screenOptions={{
+            headerShown: false,
+            // Use fade transition to avoid darkening overlay
+            cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+            // Remove the overlay that causes darkening
+            cardOverlayEnabled: false,
+          }}
         >
           <Stack.Screen
             name="sign-in"
-            options={{ headerShown: false, presentation: "card" }}
+            options={{
+              headerShown: false,
+              presentation: "card",
+              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardOverlayEnabled: false,
+            }}
           />
           <Stack.Screen
             name="sign-up"
-            options={{ headerShown: false, presentation: "card" }}
+            options={{
+              headerShown: false,
+              presentation: "card",
+              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardOverlayEnabled: false,
+            }}
           />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardOverlayEnabled: false,
+            }}
+          />
           <Stack.Screen
             name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
+            options={{
+              presentation: "modal",
+              title: "Modal",
+              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardOverlayEnabled: false,
+            }}
           />
         </Stack>
         <StatusBar style="auto" />

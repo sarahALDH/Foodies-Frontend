@@ -16,6 +16,8 @@ import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Collapsible } from "@/components/ui/collapsible";
+import { ProfileSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock data for recipes
 const mockRecipes = [
@@ -44,6 +46,7 @@ export default function ProfileScreen() {
   const textColor = useThemeColor({}, "text");
   const iconColor = useThemeColor({}, "icon");
   const borderColor = useThemeColor({}, "icon");
+  const isLoading = useNavigationLoading();
 
   const requestPermissions = async () => {
     if (Platform.OS !== "web") {
@@ -166,6 +169,19 @@ export default function ProfileScreen() {
       { cancelable: true }
     );
   };
+
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <ProfileSkeleton />
+      </ImageBackground>
+    );
+  }
 
   return (
     <ImageBackground

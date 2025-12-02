@@ -8,6 +8,8 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { PageSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock notifications data
 const mockNotifications = [
@@ -47,6 +49,20 @@ const mockNotifications = [
 
 export default function NotificationsScreen() {
   const iconColor = useThemeColor({}, "icon");
+  const isLoading = useNavigationLoading();
+
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <PageSkeleton />
+      </ImageBackground>
+    );
+  }
 
   return (
     <ImageBackground
