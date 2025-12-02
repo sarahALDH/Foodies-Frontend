@@ -449,7 +449,7 @@ export default function ProfileScreen() {
 
                   {/* Recipe Title */}
                   <View style={styles.modalInfoContainer}>
-                    <ThemedText type="title" style={styles.modalTitle}>
+                    <ThemedText style={styles.modalRecipeTitle}>
                       {selectedRecipe.name || selectedRecipe.title}
                     </ThemedText>
 
@@ -780,6 +780,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#fff",
+  },
+  modalRecipeTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 8,
+    opacity: 0.95,
   },
   modalDate: {
     fontSize: 14,
