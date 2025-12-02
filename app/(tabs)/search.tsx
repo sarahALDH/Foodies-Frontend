@@ -1,10 +1,17 @@
 import { useState } from "react";
-import { StyleSheet, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  View,
+  ImageBackground,
+} from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { SearchSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock search results
 const mockRecipes = [
@@ -19,12 +26,10 @@ const mockRecipes = [
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<typeof mockRecipes>([]);
+  const isLoading = useNavigationLoading();
 
-  const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const iconColor = useThemeColor({}, "icon");
-  const borderColor = useThemeColor({}, "icon");
-  const tintColor = useThemeColor({}, "tint");
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -45,23 +50,36 @@ export default function SearchScreen() {
     setSearchResults([]);
   };
 
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <SearchSkeleton />
+      </ImageBackground>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.header}>
+    <ImageBackground
+      source={require("@/assets/images/background.png")}
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay} />
+      <View style={styles.content}>
+        <View style={styles.header}>
           <ThemedText type="title" style={styles.headerTitle}>
             Search
           </ThemedText>
-        </ThemedView>
+        </View>
 
         {/* Search Bar */}
-        <ThemedView style={styles.searchContainer}>
-          <ThemedView
-            style={[
-              styles.searchBar,
-              { backgroundColor: backgroundColor, borderColor: borderColor },
-            ]}
-          >
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
             <IconSymbol name="magnifyingglass" size={20} color={iconColor} />
             <TextInput
               style={[styles.searchInput, { color: textColor }]}
@@ -74,11 +92,15 @@ export default function SearchScreen() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={clearSearch}>
-                <IconSymbol name="xmark.circle.fill" size={20} color={iconColor} />
+                <IconSymbol
+                  name="xmark.circle.fill"
+                  size={20}
+                  color={iconColor}
+                />
               </TouchableOpacity>
             )}
-          </ThemedView>
-        </ThemedView>
+          </View>
+        </View>
 
         <ScrollView
           style={styles.scrollView}
@@ -86,81 +108,115 @@ export default function SearchScreen() {
           showsVerticalScrollIndicator={false}
         >
           {searchQuery.length === 0 ? (
-            <ThemedView style={styles.emptyContainer}>
-              <IconSymbol name="magnifyingglass.fill" size={60} color={iconColor} />
+            <View style={styles.emptyContainer}>
+              <IconSymbol
+                name="magnifyingglass.fill"
+                size={60}
+                color={iconColor}
+              />
               <ThemedText type="subtitle" style={styles.emptyText}>
                 Start searching
               </ThemedText>
               <ThemedText style={styles.emptySubtext}>
                 Search for recipes, ingredients, or categories
               </ThemedText>
-            </ThemedView>
+            </View>
           ) : searchResults.length === 0 ? (
-            <ThemedView style={styles.emptyContainer}>
-              <IconSymbol name="magnifyingglass.fill" size={60} color={iconColor} />
+            <View style={styles.emptyContainer}>
+              <IconSymbol
+                name="magnifyingglass.fill"
+                size={60}
+                color={iconColor}
+              />
               <ThemedText type="subtitle" style={styles.emptyText}>
                 No results found
               </ThemedText>
               <ThemedText style={styles.emptySubtext}>
                 Try a different search term
               </ThemedText>
-            </ThemedView>
+            </View>
           ) : (
-            <ThemedView style={styles.resultsContainer}>
+            <View style={styles.resultsContainer}>
               <ThemedText type="defaultSemiBold" style={styles.resultsHeader}>
-                {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} found
+                {searchResults.length} result
+                {searchResults.length !== 1 ? "s" : ""} found
               </ThemedText>
               {searchResults.map((recipe) => (
-                <TouchableOpacity
-                  key={recipe.id}
-                  style={[styles.resultItem, { borderBottomColor: borderColor }]}
-                >
-                  <ThemedView style={styles.resultContent}>
-                    <ThemedText type="defaultSemiBold" style={styles.resultName}>
+                <TouchableOpacity key={recipe.id} style={styles.resultItem}>
+                  <View style={styles.resultContent}>
+                    <ThemedText
+                      type="defaultSemiBold"
+                      style={styles.resultName}
+                    >
                       {recipe.name}
                     </ThemedText>
-                    <ThemedView style={styles.resultMeta}>
-                      <ThemedText style={styles.resultCategory}>{recipe.category}</ThemedText>
-                      <ThemedView style={styles.ratingContainer}>
-                        <IconSymbol name="star.fill" size={14} color={tintColor} />
-                        <ThemedText style={[styles.rating, { color: tintColor }]}>
+                    <View style={styles.resultMeta}>
+                      <ThemedText style={styles.resultCategory}>
+                        {recipe.category}
+                      </ThemedText>
+                      <View style={styles.ratingContainer}>
+                        <IconSymbol
+                          name="star.fill"
+                          size={14}
+                          color="#83ab64"
+                        />
+                        <ThemedText
+                          style={[styles.rating, { color: "#83ab64" }]}
+                        >
                           {recipe.rating}
                         </ThemedText>
-                      </ThemedView>
-                    </ThemedView>
-                  </ThemedView>
-                  <IconSymbol name="chevron.right" size={20} color={iconColor} />
+                      </View>
+                    </View>
+                  </View>
+                  <IconSymbol
+                    name="chevron.right"
+                    size={20}
+                    color={iconColor}
+                  />
                 </TouchableOpacity>
               ))}
-            </ThemedView>
+            </View>
           )}
         </ScrollView>
-      </ThemedView>
-    </SafeAreaView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  content: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   header: {
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: "transparent",
   },
   headerTitle: {
     fontSize: 28,
+    color: "#080808",
   },
   searchContainer: {
     paddingHorizontal: 24,
     paddingVertical: 16,
+    backgroundColor: "transparent",
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#fff",
     borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.1)",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -181,24 +237,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 64,
+    backgroundColor: "transparent",
   },
   emptyText: {
     marginTop: 16,
     marginBottom: 8,
+    color: "#080808",
   },
   emptySubtext: {
     opacity: 0.7,
     fontSize: 14,
     textAlign: "center",
     paddingHorizontal: 48,
+    color: "#080808",
   },
   resultsContainer: {
     paddingHorizontal: 24,
+    backgroundColor: "transparent",
   },
   resultsHeader: {
     fontSize: 16,
     marginBottom: 16,
     opacity: 0.7,
+    color: "#080808",
   },
   resultItem: {
     flexDirection: "row",
@@ -206,31 +267,36 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 16,
     borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
   resultContent: {
     flex: 1,
+    backgroundColor: "transparent",
   },
   resultName: {
     fontSize: 16,
     marginBottom: 4,
+    color: "#080808",
   },
   resultMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    backgroundColor: "transparent",
   },
   resultCategory: {
     fontSize: 14,
     opacity: 0.7,
+    color: "#080808",
   },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    backgroundColor: "transparent",
   },
   rating: {
     fontSize: 14,
     fontWeight: "600",
   },
 });
-

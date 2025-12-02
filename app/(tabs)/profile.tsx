@@ -1,6 +1,14 @@
 import { useState } from "react";
-import { StyleSheet, ScrollView, TouchableOpacity, View, Alert, Platform, TextInput } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  Alert,
+  Platform,
+  TextInput,
+  ImageBackground,
+} from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { ThemedText } from "@/components/themed-text";
@@ -8,6 +16,8 @@ import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Collapsible } from "@/components/ui/collapsible";
+import { ProfileSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock data for recipes
 const mockRecipes = [
@@ -28,22 +38,28 @@ export default function ProfileScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [userName, setUserName] = useState("John Doe");
   const [isEditingName, setIsEditingName] = useState(false);
-  const [bio, setBio] = useState("Food enthusiast and home chef. Love experimenting with new recipes!");
+  const [bio, setBio] = useState(
+    "Food enthusiast and home chef. Love experimenting with new recipes!"
+  );
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [gender, setGender] = useState("Prefer not to say");
-  const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
-  const tintColor = useThemeColor({}, "tint");
   const iconColor = useThemeColor({}, "icon");
   const borderColor = useThemeColor({}, "icon");
+  const isLoading = useNavigationLoading();
 
   const requestPermissions = async () => {
     if (Platform.OS !== "web") {
-      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-      const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+      const { status: cameraStatus } =
+        await ImagePicker.requestCameraPermissionsAsync();
+      const { status: mediaStatus } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (cameraStatus !== "granted" || mediaStatus !== "granted") {
-        Alert.alert("Permission Required", "We need camera and media library permissions to select images.");
+        Alert.alert(
+          "Permission Required",
+          "We need camera and media library permissions to select images."
+        );
         return false;
       }
     }
@@ -105,7 +121,7 @@ export default function ProfileScreen() {
           },
           {
             text: "Save",
-            onPress: (text) => {
+            onPress: (text: string | undefined) => {
               if (text && text.trim()) {
                 setUserName(text.trim());
               }
@@ -144,46 +160,76 @@ export default function ProfileScreen() {
       [
         { text: "Male", onPress: () => setGender("Male") },
         { text: "Female", onPress: () => setGender("Female") },
-        { text: "Prefer not to say", onPress: () => setGender("Prefer not to say") },
+        {
+          text: "Prefer not to say",
+          onPress: () => setGender("Prefer not to say"),
+        },
         { text: "Cancel", style: "cancel" },
       ],
       { cancelable: true }
     );
   };
 
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <ProfileSkeleton />
+      </ImageBackground>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <ThemedView style={styles.container}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+    <ImageBackground
+      source={require("@/assets/images/background.png")}
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Header */}
-        <ThemedView style={styles.profileHeader}>
-          <TouchableOpacity onPress={showImagePickerOptions} activeOpacity={0.7}>
-            <ThemedView style={styles.avatarWrapper}>
-              <ThemedView style={styles.avatarContainer}>
+        <View style={styles.profileHeader}>
+          <TouchableOpacity
+            onPress={showImagePickerOptions}
+            activeOpacity={0.7}
+          >
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatarContainer}>
                 {profileImage ? (
-                  <Image source={{ uri: profileImage }} style={styles.avatarImage} contentFit="cover" />
+                  <Image
+                    source={{ uri: profileImage }}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                  />
                 ) : (
-                  <IconSymbol name="person.fill" size={60} color={tintColor} />
+                  <IconSymbol name="person.fill" size={60} color="#83ab64" />
                 )}
-              </ThemedView>
-              <ThemedView
+              </View>
+              <View
                 style={[
                   styles.editIconContainer,
-                  { backgroundColor: tintColor, borderColor: backgroundColor },
+                  { backgroundColor: "#83ab64", borderColor: "#fff" },
                 ]}
               >
                 <IconSymbol name="camera.fill" size={16} color="#fff" />
-              </ThemedView>
-            </ThemedView>
+              </View>
+            </View>
           </TouchableOpacity>
           <View style={styles.userNameContainer}>
             {isEditingName ? (
               <TextInput
-                style={[styles.userNameInput, { color: textColor, borderColor: borderColor }]}
+                style={[
+                  styles.userNameInput,
+                  { color: textColor, borderColor: borderColor },
+                ]}
                 value={userName}
                 onChangeText={setUserName}
                 onSubmitEditing={() => saveUsername(userName)}
@@ -198,14 +244,19 @@ export default function ProfileScreen() {
               </ThemedText>
             )}
             {!isEditingName && (
-              <TouchableOpacity onPress={handleEditUsername} style={styles.editNameButton}>
-                <IconSymbol name="pencil.fill" size={20} color="#fff" />
+              <TouchableOpacity
+                onPress={handleEditUsername}
+                style={styles.editNameButton}
+              >
+                <IconSymbol
+                  name={"pencil.fill" as any}
+                  size={20}
+                  color="#fff"
+                />
               </TouchableOpacity>
             )}
           </View>
-          <ThemedText style={styles.userEmail}>
-            john.doe@example.com
-          </ThemedText>
+          <ThemedText style={styles.userEmail}>john.doe@example.com</ThemedText>
 
           {/* Bio Section */}
           <View style={styles.bioContainer}>
@@ -214,7 +265,10 @@ export default function ProfileScreen() {
             </ThemedText>
             {isEditingBio ? (
               <TextInput
-                style={[styles.bioInput, { color: textColor, borderColor: borderColor }]}
+                style={[
+                  styles.bioInput,
+                  { color: textColor, borderColor: borderColor },
+                ]}
                 value={bio}
                 onChangeText={setBio}
                 onSubmitEditing={() => saveBio(bio)}
@@ -243,62 +297,93 @@ export default function ProfileScreen() {
               <ThemedText style={styles.genderText}>{gender}</ThemedText>
             </TouchableOpacity>
           </View>
-        </ThemedView>
+        </View>
 
         {/* Saved Recipes Section */}
-        <ThemedView style={styles.section}>
+        <View style={styles.section}>
           <Collapsible title="Saved Recipes">
-            <ThemedView style={styles.recipesGrid}>
+            <View style={styles.recipesGrid}>
               {mockSavedRecipes.map((recipe) => (
                 <TouchableOpacity key={recipe.id} style={styles.recipeCard}>
-                  <ThemedView style={styles.recipeImageContainer}>
+                  <View style={styles.recipeImageContainer}>
                     {recipe.image ? (
-                      <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
+                      <Image
+                        source={{ uri: recipe.image }}
+                        style={styles.recipeImage}
+                      />
                     ) : (
-                      <IconSymbol name="book.fill" size={40} color={iconColor} />
+                      <IconSymbol
+                        name="book.fill"
+                        size={40}
+                        color={iconColor}
+                      />
                     )}
-                  </ThemedView>
-                  <ThemedText type="defaultSemiBold" style={styles.recipeName} numberOfLines={2}>
+                  </View>
+                  <ThemedText
+                    type="defaultSemiBold"
+                    style={styles.recipeName}
+                    numberOfLines={2}
+                  >
                     {recipe.name}
                   </ThemedText>
-                  <ThemedText style={styles.recipeDate}>{recipe.date}</ThemedText>
+                  <ThemedText style={styles.recipeDate}>
+                    {recipe.date}
+                  </ThemedText>
                 </TouchableOpacity>
               ))}
-            </ThemedView>
+            </View>
           </Collapsible>
-        </ThemedView>
+        </View>
 
         {/* Recipe History Section */}
-        <ThemedView style={styles.section}>
+        <View style={styles.section}>
           <Collapsible title="Recipe History">
-            <ThemedView style={styles.recipesGrid}>
+            <View style={styles.recipesGrid}>
               {mockRecipes.map((recipe) => (
                 <TouchableOpacity key={recipe.id} style={styles.recipeCard}>
-                  <ThemedView style={styles.recipeImageContainer}>
+                  <View style={styles.recipeImageContainer}>
                     {recipe.image ? (
-                      <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
+                      <Image
+                        source={{ uri: recipe.image }}
+                        style={styles.recipeImage}
+                      />
                     ) : (
-                      <IconSymbol name="book.fill" size={40} color={iconColor} />
+                      <IconSymbol
+                        name="book.fill"
+                        size={40}
+                        color={iconColor}
+                      />
                     )}
-                  </ThemedView>
-                  <ThemedText type="defaultSemiBold" style={styles.recipeName} numberOfLines={2}>
+                  </View>
+                  <ThemedText
+                    type="defaultSemiBold"
+                    style={styles.recipeName}
+                    numberOfLines={2}
+                  >
                     {recipe.name}
                   </ThemedText>
-                  <ThemedText style={styles.recipeDate}>{recipe.date}</ThemedText>
+                  <ThemedText style={styles.recipeDate}>
+                    {recipe.date}
+                  </ThemedText>
                 </TouchableOpacity>
               ))}
-            </ThemedView>
+            </View>
           </Collapsible>
-        </ThemedView>
-        </ScrollView>
-      </ThemedView>
-    </SafeAreaView>
+        </View>
+      </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   scrollView: {
     flex: 1,
@@ -310,16 +395,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 32,
     paddingHorizontal: 24,
+    backgroundColor: "transparent",
   },
   avatarWrapper: {
     position: "relative",
     marginBottom: 16,
+    backgroundColor: "transparent",
   },
   avatarContainer: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "rgba(10, 126, 164, 0.1)",
+    backgroundColor: "rgba(131, 171, 100, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -349,6 +436,7 @@ const styles = StyleSheet.create({
   },
   userName: {
     textAlign: "center",
+    color: "#080808",
   },
   userNameInput: {
     fontSize: 32,
@@ -368,20 +456,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginBottom: 24,
+    color: "#080808",
   },
   bioContainer: {
     width: "100%",
     marginBottom: 20,
     paddingHorizontal: 24,
+    backgroundColor: "transparent",
   },
   bioLabel: {
     fontSize: 16,
     marginBottom: 8,
+    color: "#080808",
   },
   bioText: {
     fontSize: 14,
     lineHeight: 20,
     opacity: 0.8,
+    color: "#080808",
   },
   bioInput: {
     fontSize: 14,
@@ -397,14 +489,17 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 20,
     paddingHorizontal: 24,
+    backgroundColor: "transparent",
   },
   genderLabel: {
     fontSize: 16,
     marginBottom: 8,
+    color: "#080808",
   },
   genderText: {
     fontSize: 14,
     opacity: 0.8,
+    color: "#080808",
   },
   editButton: {
     padding: 4,
@@ -417,6 +512,7 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 24,
     marginBottom: 32,
+    backgroundColor: "transparent",
   },
   sectionTitle: {
     marginBottom: 16,
@@ -425,6 +521,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+    backgroundColor: "transparent",
   },
   recipeCard: {
     width: "48%",
@@ -451,10 +548,11 @@ const styles = StyleSheet.create({
   recipeName: {
     marginBottom: 4,
     fontSize: 14,
+    color: "#080808",
   },
   recipeDate: {
     fontSize: 12,
     opacity: 0.7,
+    color: "#080808",
   },
 });
-

@@ -1,9 +1,15 @@
-import { StyleSheet, ScrollView, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  ImageBackground,
+} from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { PageSkeleton } from "@/components/skeleton";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock notifications data
 const mockNotifications = [
@@ -42,26 +48,42 @@ const mockNotifications = [
 ];
 
 export default function NotificationsScreen() {
-  const backgroundColor = useThemeColor({}, "background");
-  const textColor = useThemeColor({}, "text");
   const iconColor = useThemeColor({}, "icon");
-  const borderColor = useThemeColor({}, "icon");
+  const isLoading = useNavigationLoading();
+
+  if (isLoading) {
+    return (
+      <ImageBackground
+        source={require("@/assets/images/background.png")}
+        style={styles.container}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay} />
+        <PageSkeleton />
+      </ImageBackground>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.header}>
+    <ImageBackground
+      source={require("@/assets/images/background.png")}
+      style={styles.container}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay} />
+      <View style={styles.content}>
+        <View style={styles.header}>
           <ThemedText type="title" style={styles.headerTitle}>
             Notifications
           </ThemedText>
-        </ThemedView>
+        </View>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {mockNotifications.length === 0 ? (
-            <ThemedView style={styles.emptyContainer}>
+            <View style={styles.emptyContainer}>
               <IconSymbol name="bell.fill" size={60} color={iconColor} />
               <ThemedText type="subtitle" style={styles.emptyText}>
                 No notifications
@@ -69,21 +91,20 @@ export default function NotificationsScreen() {
               <ThemedText style={styles.emptySubtext}>
                 You're all caught up!
               </ThemedText>
-            </ThemedView>
+            </View>
           ) : (
-            <ThemedView style={styles.notificationsList}>
+            <View style={styles.notificationsList}>
               {mockNotifications.map((notification, index) => (
                 <TouchableOpacity
                   key={notification.id}
                   style={[
                     styles.notificationItem,
-                    { borderBottomColor: borderColor },
                     index === mockNotifications.length - 1 && styles.lastItem,
                     !notification.read && styles.unreadItem,
                   ]}
                 >
-                  <ThemedView style={styles.notificationContent}>
-                    <ThemedView style={styles.notificationHeader}>
+                  <View style={styles.notificationContent}>
+                    <View style={styles.notificationHeader}>
                       <ThemedText
                         type="defaultSemiBold"
                         style={[
@@ -94,38 +115,53 @@ export default function NotificationsScreen() {
                         {notification.title}
                       </ThemedText>
                       {!notification.read && (
-                        <ThemedView style={[styles.unreadDot, { backgroundColor: iconColor }]} />
+                        <View
+                          style={[
+                            styles.unreadDot,
+                            { backgroundColor: "#83ab64" },
+                          ]}
+                        />
                       )}
-                    </ThemedView>
+                    </View>
                     <ThemedText style={styles.notificationMessage}>
                       {notification.message}
                     </ThemedText>
                     <ThemedText style={styles.notificationTime}>
                       {notification.time}
                     </ThemedText>
-                  </ThemedView>
+                  </View>
                 </TouchableOpacity>
               ))}
-            </ThemedView>
+            </View>
           )}
         </ScrollView>
-      </ThemedView>
-    </SafeAreaView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  content: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   header: {
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    backgroundColor: "transparent",
   },
   headerTitle: {
     fontSize: 28,
+    color: "#080808",
   },
   scrollView: {
     flex: 1,
@@ -138,43 +174,51 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 64,
+    backgroundColor: "transparent",
   },
   emptyText: {
     marginTop: 16,
     marginBottom: 8,
+    color: "#080808",
   },
   emptySubtext: {
     opacity: 0.7,
     fontSize: 14,
+    color: "#080808",
   },
   notificationsList: {
     paddingHorizontal: 24,
+    backgroundColor: "transparent",
   },
   notificationItem: {
     paddingVertical: 16,
     borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
   lastItem: {
     borderBottomWidth: 0,
   },
   unreadItem: {
-    backgroundColor: "rgba(10, 126, 164, 0.05)",
+    backgroundColor: "rgba(131, 171, 100, 0.1)",
     borderRadius: 8,
     paddingHorizontal: 12,
     marginVertical: 4,
   },
   notificationContent: {
     flex: 1,
+    backgroundColor: "transparent",
   },
   notificationHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 4,
+    backgroundColor: "transparent",
   },
   notificationTitle: {
     fontSize: 16,
     flex: 1,
+    color: "#080808",
   },
   unreadTitle: {
     fontWeight: "700",
@@ -189,10 +233,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.8,
     marginBottom: 4,
+    color: "#080808",
   },
   notificationTime: {
     fontSize: 12,
     opacity: 0.6,
+    color: "#080808",
   },
 });
-
