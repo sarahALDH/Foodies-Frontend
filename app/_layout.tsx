@@ -2,7 +2,6 @@ import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-  CardStyleInterpolators,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -10,6 +9,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
+
+// Custom fade transition without darkening overlay
+const forFade = ({ current }: { current: { progress: number } }) => ({
+  cardStyle: {
+    opacity: current.progress,
+  },
+});
 
 export const unstable_settings = {
   initialRouteName: "sign-in",
@@ -26,9 +32,11 @@ export default function RootLayout() {
           screenOptions={{
             headerShown: false,
             // Use fade transition to avoid darkening overlay
-            cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+            cardStyleInterpolator: forFade,
             // Remove the overlay that causes darkening
             cardOverlayEnabled: false,
+            // Use transparent background to prevent darkening
+            cardStyle: { backgroundColor: "transparent" },
           }}
         >
           <Stack.Screen
@@ -36,8 +44,9 @@ export default function RootLayout() {
             options={{
               headerShown: false,
               presentation: "card",
-              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardStyleInterpolator: forFade,
               cardOverlayEnabled: false,
+              cardStyle: { backgroundColor: "transparent" },
             }}
           />
           <Stack.Screen
@@ -45,16 +54,18 @@ export default function RootLayout() {
             options={{
               headerShown: false,
               presentation: "card",
-              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardStyleInterpolator: forFade,
               cardOverlayEnabled: false,
+              cardStyle: { backgroundColor: "transparent" },
             }}
           />
           <Stack.Screen
             name="(tabs)"
             options={{
               headerShown: false,
-              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardStyleInterpolator: forFade,
               cardOverlayEnabled: false,
+              cardStyle: { backgroundColor: "transparent" },
             }}
           />
           <Stack.Screen
@@ -62,8 +73,9 @@ export default function RootLayout() {
             options={{
               presentation: "modal",
               title: "Modal",
-              cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              cardStyleInterpolator: forFade,
               cardOverlayEnabled: false,
+              cardStyle: { backgroundColor: "transparent" },
             }}
           />
         </Stack>
