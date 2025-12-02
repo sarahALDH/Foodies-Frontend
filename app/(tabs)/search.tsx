@@ -1,16 +1,19 @@
+import { SearchSkeleton } from "@/components/skeleton";
+import { ThemedText } from "@/components/themed-text";
+import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 import { useState } from "react";
 import {
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { ThemedText } from "@/components/themed-text";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { SearchSkeleton } from "@/components/skeleton";
-import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 
 // Mock recipes for grid view
 const mockExploreRecipes = [
@@ -44,7 +47,12 @@ export default function SearchScreen() {
   const isLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
 
-  const categories: CategoryType[] = ["All", "Recipes", "Ingredients", "Categories"];
+  const categories: CategoryType[] = [
+    "All",
+    "Recipes",
+    "Ingredients",
+    "Categories",
+  ];
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -89,7 +97,11 @@ export default function SearchScreen() {
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
-              <Ionicons name="search-outline" size={20} color="rgba(255, 255, 255, 0.8)" />
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color="rgba(255, 255, 255, 0.8)"
+              />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search recipes..."
@@ -101,7 +113,11 @@ export default function SearchScreen() {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={clearSearch}>
-                  <Ionicons name="close-circle" size={20} color="rgba(255, 255, 255, 0.7)" />
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color="rgba(255, 255, 255, 0.7)"
+                  />
                 </TouchableOpacity>
               )}
             </View>
@@ -116,7 +132,11 @@ export default function SearchScreen() {
             >
               {searchResults.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="search-outline" size={60} color="rgba(255, 255, 255, 0.6)" />
+                  <Ionicons
+                    name="search-outline"
+                    size={60}
+                    color="rgba(255, 255, 255, 0.6)"
+                  />
                   <ThemedText style={styles.emptyText}>
                     No results found
                   </ThemedText>
@@ -127,13 +147,11 @@ export default function SearchScreen() {
               ) : (
                 <View style={styles.resultsContainer}>
                   <ThemedText style={styles.resultsHeader}>
-                    {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} found
+                    {searchResults.length} result
+                    {searchResults.length !== 1 ? "s" : ""} found
                   </ThemedText>
                   {searchResults.map((recipe) => (
-                    <TouchableOpacity
-                      key={recipe.id}
-                      style={styles.resultItem}
-                    >
+                    <TouchableOpacity key={recipe.id} style={styles.resultItem}>
                       <View style={styles.resultContent}>
                         <ThemedText style={styles.resultName}>
                           {recipe.name}
@@ -150,7 +168,11 @@ export default function SearchScreen() {
                           </View>
                         </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.7)" />
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color="rgba(255, 255, 255, 0.7)"
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -178,7 +200,8 @@ export default function SearchScreen() {
                     <ThemedText
                       style={[
                         styles.categoryText,
-                        activeCategory === category && styles.activeCategoryText,
+                        activeCategory === category &&
+                          styles.activeCategoryText,
                       ]}
                     >
                       {category}
@@ -200,10 +223,17 @@ export default function SearchScreen() {
                         {recipe.image ? (
                           <View style={styles.recipeImagePlaceholder} />
                         ) : (
-                          <Ionicons name="restaurant-outline" size={30} color="rgba(255, 255, 255, 0.7)" />
+                          <Ionicons
+                            name="restaurant-outline"
+                            size={30}
+                            color="rgba(255, 255, 255, 0.7)"
+                          />
                         )}
                       </View>
-                      <ThemedText style={styles.recipeCardName} numberOfLines={1}>
+                      <ThemedText
+                        style={styles.recipeCardName}
+                        numberOfLines={1}
+                      >
                         {recipe.name}
                       </ThemedText>
                     </TouchableOpacity>
