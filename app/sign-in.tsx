@@ -16,6 +16,7 @@ import { Image } from "expo-image";
 import { PageSkeleton } from "@/components/skeleton";
 import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/contexts/AuthContext";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -31,10 +32,13 @@ export default function HomeScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const navigation = useNavigation();
   const isLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
 
   // Animation values
   const mushroom1Y = useSharedValue(0);
@@ -102,24 +106,26 @@ export default function HomeScreen() {
     transform: [{ translateY: formTranslateY.value }],
   }));
 
-  const handleSignIn = () => {
-    // TODO: Implement actual sign-in logic with your backend/authentication
-    // For now, this is a placeholder that checks if fields are filled
+  const handleSignIn = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password");
       return;
     }
 
-    // Simulate checking if user exists
-    // Replace this with your actual authentication logic
-    const userExists = false; // This should be replaced with actual check
+    setIsSubmitting(true);
+    setErrorMessage("");
+    setShowRegisterPrompt(false);
 
-    if (!userExists) {
-      setShowRegisterPrompt(true);
-    } else {
-      // User exists, proceed with sign in
-      console.log("Sign in:", { email, password });
-      router.replace("/(tabs)");
+    try {
+      await login(email, password);
+      // Navigation is handled by AuthContext after successful login
+    } catch (error: any) {
+      console.error("Sign in error:", error);
+      const errorMsg = error?.message || "Failed to sign in. Please check your credentials.";
+      setErrorMessage(errorMsg);
+      Alert.alert("Sign In Failed", errorMsg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -276,10 +282,10 @@ export default function HomeScreen() {
                 </ThemedText>
               </TouchableOpacity>
 
-              {showRegisterPrompt && (
+              {errorMessage && (
                 <View style={styles.registerPrompt}>
                   <ThemedText style={styles.registerPromptText}>
-                    No account found with this email.{" "}
+                    {errorMessage}{" "}
                   </ThemedText>
                   <TouchableOpacity onPress={() => router.push("/sign-up")}>
                     <ThemedText style={styles.registerLink}>
@@ -293,15 +299,18 @@ export default function HomeScreen() {
               <TouchableOpacity
                 onPress={handleSignIn}
                 activeOpacity={0.85}
-                style={styles.primaryButton}
+                style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+                disabled={isSubmitting}
               >
                 <View style={styles.buttonContent}>
                   <ThemedText style={styles.primaryButtonText}>
-                    Sign In
+                    {isSubmitting ? "Signing In..." : "Sign In"}
                   </ThemedText>
-                  <View style={styles.buttonArrowContainer}>
-                    <Ionicons name="arrow-forward" size={18} color="#1a4d2e" />
-                  </View>
+                  {!isSubmitting && (
+                    <View style={styles.buttonArrowContainer}>
+                      <Ionicons name="arrow-forward" size={18} color="#1a4d2e" />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -578,5 +587,8 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     marginLeft: 4,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
   },
 });

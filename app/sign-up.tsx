@@ -16,6 +16,7 @@ import { Image } from "expo-image";
 import { PageSkeleton } from "@/components/skeleton";
 import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/contexts/AuthContext";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -32,10 +33,13 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const navigation = useNavigation();
   const isLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
+  const { register } = useAuth();
 
   // Animation values
   const mushroom1Y = useSharedValue(0);
@@ -103,8 +107,7 @@ export default function SignUpScreen() {
     transform: [{ translateY: formTranslateY.value }],
   }));
 
-  const handleSignUp = () => {
-    // TODO: Implement actual sign-up logic
+  const handleSignUp = async () => {
     if (!name || !email || !password || !confirmPassword) {
       Alert.alert("Error", "Please fill in all fields");
       return;
@@ -113,9 +116,25 @@ export default function SignUpScreen() {
       Alert.alert("Error", "Passwords do not match");
       return;
     }
-    console.log("Sign up:", { name, email, password });
-    // Navigate to home after successful sign up
-    router.replace("/(tabs)");
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters long");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      await register(name, email, password);
+      // Navigation is handled by AuthContext after successful registration
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      const errorMsg = error?.message || "Failed to create account. Please try again.";
+      setErrorMessage(errorMsg);
+      Alert.alert("Sign Up Failed", errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -343,19 +362,30 @@ export default function SignUpScreen() {
                 </View>
               </View>
 
+              {errorMessage && (
+                <View style={styles.errorContainer}>
+                  <ThemedText style={styles.errorText}>
+                    {errorMessage}
+                  </ThemedText>
+                </View>
+              )}
+
               {/* Sign Up Button */}
               <TouchableOpacity
                 onPress={handleSignUp}
                 activeOpacity={0.85}
-                style={styles.primaryButton}
+                style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+                disabled={isSubmitting}
               >
                 <View style={styles.buttonContent}>
                   <ThemedText style={styles.primaryButtonText}>
-                    Sign Up
+                    {isSubmitting ? "Creating Account..." : "Sign Up"}
                   </ThemedText>
-                  <View style={styles.buttonArrowContainer}>
-                    <Ionicons name="arrow-forward" size={18} color="#1a4d2e" />
-                  </View>
+                  {!isSubmitting && (
+                    <View style={styles.buttonArrowContainer}>
+                      <Ionicons name="arrow-forward" size={18} color="#1a4d2e" />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -613,5 +643,21 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     marginLeft: 4,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  errorContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "rgba(255, 0, 0, 0.2)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 0, 0, 0.5)",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#fff",
+    textAlign: "center",
   },
 });

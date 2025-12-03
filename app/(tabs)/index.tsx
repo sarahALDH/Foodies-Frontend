@@ -17,18 +17,13 @@ import { Image } from "expo-image";
 import { PageSkeleton } from "@/components/skeleton";
 import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/contexts/AuthContext";
+import { getCategories, createCategory, Category } from "@/services/categories";
+import { getRecipes, Recipe } from "@/services/recipes";
+import { ActivityIndicator } from "react-native";
 
-// Default food categories
-const defaultCategories = [
-  { id: "1", name: "All", icon: "food" },
-  { id: "2", name: "Breakfast", icon: "coffee" },
-  { id: "3", name: "Lunch", icon: "bowl-mix" },
-  { id: "4", name: "Dinner", icon: "silverware-fork-knife" },
-  { id: "5", name: "Dessert", icon: "cupcake" },
-  { id: "6", name: "Snacks", icon: "cookie" },
-  { id: "7", name: "Vegetarian", icon: "leaf" },
-  { id: "8", name: "Vegan", icon: "sprout" },
-];
+// Default "All" category (not stored in backend)
+const ALL_CATEGORY = { id: "all", name: "All", icon: "food" };
 
 // Available icons for category selection
 const availableIcons = [
@@ -50,93 +45,22 @@ const availableIcons = [
   "carrot",
 ];
 
-// Default recipes (sorted by latest added first)
-const defaultRecipes = [
-  {
-    id: "1",
-    name: "Morning Pancakes",
-    category: "Breakfast",
-    description: "Fluffy pancakes with fresh berries and maple syrup",
-    image: null,
-    rating: 4.8,
-    time: "30 min",
-    difficulty: "Easy",
-    calories: 320,
-    dateAdded: "2024-01-25",
-  },
-  {
-    id: "2",
-    name: "Fresh Tofu Salad",
-    category: "Vegetarian",
-    description: "Crispy tofu, mixed greens, and tangy sesame dressing",
-    image: null,
-    rating: 4.6,
-    time: "25 min",
-    difficulty: "Medium",
-    calories: 280,
-    dateAdded: "2024-01-24",
-  },
-  {
-    id: "3",
-    name: "Grilled Salmon",
-    category: "Dinner",
-    description: "Perfectly grilled salmon with lemon and herbs",
-    image: null,
-    rating: 4.9,
-    time: "45 min",
-    difficulty: "Medium",
-    calories: 350,
-    dateAdded: "2024-01-23",
-  },
-  {
-    id: "4",
-    name: "Chocolate Cake",
-    category: "Dessert",
-    description: "Rich and moist chocolate cake with cream frosting",
-    image: null,
-    rating: 4.7,
-    time: "60 min",
-    difficulty: "Hard",
-    calories: 450,
-    dateAdded: "2024-01-22",
-  },
-  {
-    id: "5",
-    name: "Vegetable Stir Fry",
-    category: "Vegetarian",
-    description: "Colorful mix of fresh vegetables with soy sauce",
-    image: null,
-    rating: 4.5,
-    time: "20 min",
-    difficulty: "Easy",
-    calories: 200,
-    dateAdded: "2024-01-21",
-  },
-  {
-    id: "6",
-    name: "Beef Steak",
-    category: "Dinner",
-    description: "Juicy grilled steak with roasted vegetables",
-    image: null,
-    rating: 4.8,
-    time: "50 min",
-    difficulty: "Medium",
-    calories: 520,
-    dateAdded: "2024-01-20",
-  },
-];
 
 export default function HomeScreen() {
-  const [selectedCategory, setSelectedCategory] = useState("1");
-  const [categories, setCategories] = useState(defaultCategories);
-  const [recipes, setRecipes] = useState(defaultRecipes);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [categories, setCategories] = useState<Array<Category & { icon?: string }>>([ALL_CATEGORY]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAllRecipesModal, setShowAllRecipesModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("food");
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const navigation = useNavigation();
   const isLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
 
   // Hide navigation bar
   useEffect(() => {
@@ -145,21 +69,79 @@ export default function HomeScreen() {
     });
   }, [navigation]);
 
+  // Fetch categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Fetch recipes on mount and when category changes
+  useEffect(() => {
+    fetchRecipes();
+  }, [selectedCategory]);
+
+  const fetchCategories = async () => {
+    try {
+      setIsLoadingCategories(true);
+      const apiCategories = await getCategories();
+      // Map API categories and add icon field (using first letter or default)
+      const mappedCategories = apiCategories.map((cat) => ({
+        ...cat,
+        name: cat.categoryName || cat.name || "",
+        icon: "food", // Default icon, can be enhanced later
+      }));
+      setCategories([ALL_CATEGORY, ...mappedCategories]);
+    } catch (error: any) {
+      console.error("Error fetching categories:", error);
+      Alert.alert("Error", "Failed to load categories");
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  const fetchRecipes = async () => {
+    try {
+      setIsLoadingRecipes(true);
+      const params: any = {};
+      
+      // If a specific category is selected (not "all"), filter by category_id
+      if (selectedCategory !== "all") {
+        const selectedCat = categories.find((cat) => cat.id === selectedCategory);
+        if (selectedCat?.id && selectedCat.id !== "all") {
+          params.category_id = selectedCat.id;
+        }
+      }
+      
+      const apiRecipes = await getRecipes(params);
+      // Map API recipes to match our format
+      const mappedRecipes = apiRecipes.map((recipe) => ({
+        ...recipe,
+        name: recipe.title || recipe.name,
+        category: recipe.category_id || "",
+        dateAdded: recipe.date || recipe.createdAt || new Date().toISOString(),
+      }));
+      setRecipes(mappedRecipes);
+    } catch (error: any) {
+      console.error("Error fetching recipes:", error);
+      Alert.alert("Error", "Failed to load recipes");
+    } finally {
+      setIsLoadingRecipes(false);
+    }
+  };
+
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Sign Out",
         style: "destructive",
-        onPress: () => {
-          // TODO: Implement actual sign out logic
-          router.replace("/sign-in");
+        onPress: async () => {
+          await logout();
         },
       },
     ]);
   };
 
-  const handleCreateCategory = () => {
+  const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) {
       Alert.alert("Error", "Please enter a category name");
       return;
@@ -168,34 +150,45 @@ export default function HomeScreen() {
     // Check if category name already exists
     if (
       categories.some(
-        (cat) => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase()
+        (cat) => cat.name?.toLowerCase() === newCategoryName.trim().toLowerCase()
       )
     ) {
       Alert.alert("Error", "A category with this name already exists");
       return;
     }
 
-    // Create new category
-    const newCategory = {
-      id: String(Date.now()),
-      name: newCategoryName.trim(),
-      icon: selectedIcon,
-    };
-
-    setCategories([...categories, newCategory]);
-    setNewCategoryName("");
-    setSelectedIcon("food");
-    setShowCategoryModal(false);
-    Alert.alert("Success", "Category created successfully!");
+    try {
+      setIsCreatingCategory(true);
+      const newCategory = await createCategory({
+        categoryName: newCategoryName.trim(),
+        name: newCategoryName.trim(),
+      });
+      
+      // Add to local state with icon
+      const categoryWithIcon = {
+        ...newCategory,
+        name: newCategory.categoryName || newCategory.name || "",
+        icon: selectedIcon,
+      };
+      
+      setCategories([ALL_CATEGORY, ...categories.slice(1), categoryWithIcon]);
+      setNewCategoryName("");
+      setSelectedIcon("food");
+      setShowCategoryModal(false);
+      Alert.alert("Success", "Category created successfully!");
+    } catch (error: any) {
+      console.error("Error creating category:", error);
+      Alert.alert("Error", error?.message || "Failed to create category");
+    } finally {
+      setIsCreatingCategory(false);
+    }
   };
 
   const filteredRecipes =
-    selectedCategory === "1"
+    selectedCategory === "all"
       ? recipes
       : recipes.filter(
-          (recipe) =>
-            recipe.category ===
-            categories.find((cat) => cat.id === selectedCategory)?.name
+          (recipe) => recipe.category_id === selectedCategory
         );
 
   if (isLoading) {
@@ -242,31 +235,35 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesContainer}
           >
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryChip,
-                  selectedCategory === category.id && styles.categoryChipActive,
-                ]}
-                onPress={() => setSelectedCategory(category.id)}
-              >
-                <MaterialCommunityIcons
-                  name={category.icon as any}
-                  size={20}
-                  color={selectedCategory === category.id ? "#fff" : "#fff"}
-                />
-                <ThemedText
+            {isLoadingCategories ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
                   style={[
-                    styles.categoryText,
-                    selectedCategory === category.id &&
-                      styles.categoryTextActive,
+                    styles.categoryChip,
+                    selectedCategory === category.id && styles.categoryChipActive,
                   ]}
+                  onPress={() => setSelectedCategory(category.id)}
                 >
-                  {category.name}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
+                  <MaterialCommunityIcons
+                    name={(category.icon || "food") as any}
+                    size={20}
+                    color={selectedCategory === category.id ? "#fff" : "#fff"}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.categoryText,
+                      selectedCategory === category.id &&
+                        styles.categoryTextActive,
+                    ]}
+                  >
+                    {category.name || category.categoryName || ""}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))
+            )}
             {/* Add Category Button */}
             <TouchableOpacity
               style={styles.addCategoryButton}
@@ -289,7 +286,16 @@ export default function HomeScreen() {
               <Ionicons name="chevron-forward" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
-          {filteredRecipes.map((recipe) => (
+          {isLoadingRecipes ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          ) : filteredRecipes.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <ThemedText style={styles.emptyText}>No recipes found</ThemedText>
+            </View>
+          ) : (
+            filteredRecipes.map((recipe) => (
             <TouchableOpacity
               key={recipe.id}
               style={styles.recipeCard}
@@ -351,7 +357,8 @@ export default function HomeScreen() {
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -428,13 +435,18 @@ export default function HomeScreen() {
 
               {/* Create Button */}
               <TouchableOpacity
-                style={styles.createButton}
+                style={[styles.createButton, isCreatingCategory && styles.createButtonDisabled]}
                 onPress={handleCreateCategory}
                 activeOpacity={0.85}
+                disabled={isCreatingCategory}
               >
-                <ThemedText style={styles.createButtonText}>
-                  Create Category
-                </ThemedText>
+                {isCreatingCategory ? (
+                  <ActivityIndicator size="small" color="#1a4d2e" />
+                ) : (
+                  <ThemedText style={styles.createButtonText}>
+                    Create Category
+                  </ThemedText>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1058,5 +1070,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#fff",
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
   },
 });
