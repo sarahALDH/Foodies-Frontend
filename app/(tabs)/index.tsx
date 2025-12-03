@@ -6,8 +6,8 @@ import { Category, createCategory, getCategories } from "@/services/categories";
 import { getRecipes, Recipe } from "@/services/recipes";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useNavigation } from "expo-router";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -62,6 +62,7 @@ export default function HomeScreen() {
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const navigation = useNavigation();
+  const router = useRouter();
   const isLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
@@ -75,6 +76,13 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchRecipes();
   }, [selectedCategory]);
+
+  // Refresh recipes when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecipes();
+    }, [selectedCategory])
+  );
 
   const fetchCategories = async () => {
     try {
@@ -130,15 +138,117 @@ export default function HomeScreen() {
         return;
       }
 
-      // Map API recipes to match our format
-      // Backend uses _id, so map it to id for frontend
-      const mappedRecipes = apiRecipes.map((recipe) => ({
-        ...recipe,
-        id: recipe.id || recipe._id || String(Date.now() + Math.random()), // Use _id if id doesn't exist
-        name: recipe.title || recipe.name,
-        category: recipe.category_id || "",
-        dateAdded: recipe.date || recipe.createdAt || new Date().toISOString(),
-      }));
+      // Map API recipes to match our format with proper user data extraction
+      const mappedRecipes = apiRecipes.map((recipe: any) => {
+        // Extract user data from various possible locations
+        let userData;
+        if (recipe.user && typeof recipe.user === "object") {
+          // User object exists
+          userData = {
+            _id:
+              recipe.user._id ||
+              recipe.user.id ||
+              recipe.user_id ||
+              recipe.userId ||
+              "",
+            userName:
+              recipe.user.userName ||
+              recipe.user.name ||
+              recipe.user.username ||
+              "",
+            userProfilePicture:
+              recipe.user.userProfilePicture ||
+              recipe.user.profileImage ||
+              recipe.user.avatar ||
+              null,
+          };
+        } else {
+          // Try to extract from top-level fields
+          userData = {
+            _id: recipe.user_id || recipe.userId || "",
+            userName: recipe.userName || recipe.username || "",
+            userProfilePicture:
+              recipe.userProfilePicture || recipe.profileImage || null,
+          };
+        }
+
+        // Helper function to construct image URL
+        const getImageUrl = (imagePath: any): string | null => {
+          if (!imagePath) return null;
+          if (typeof imagePath === "string") {
+            // If it's already a full URL, return it
+            if (
+              imagePath.startsWith("http://") ||
+              imagePath.startsWith("https://")
+            ) {
+              return imagePath;
+            }
+            // If it's a relative path, construct full URL
+            const API_BASE_URL = "http://134.122.96.197:3000";
+            if (imagePath.startsWith("/")) {
+              return `${API_BASE_URL}${imagePath}`;
+            }
+            return `${API_BASE_URL}/${imagePath}`;
+          }
+          return null;
+        };
+
+        return {
+          ...recipe,
+          id: recipe.id || recipe._id || String(Date.now() + Math.random()),
+          name: recipe.title || recipe.name || recipe.recipeName || "",
+          title: recipe.title || recipe.name || recipe.recipeName || "",
+          image: getImageUrl(
+            recipe.image ||
+              recipe.imageUrl ||
+              recipe.imagePath ||
+              recipe.photo ||
+              recipe.photoUrl
+          ),
+          category: (() => {
+            // Extract category name as string
+            if (Array.isArray(recipe.category) && recipe.category.length > 0) {
+              return (
+                recipe.category[0]?.categoryName ||
+                recipe.category[0]?.name ||
+                ""
+              );
+            }
+            if (recipe.category && typeof recipe.category === "object") {
+              return recipe.category.categoryName || recipe.category.name || "";
+            }
+            if (typeof recipe.category === "string") {
+              return recipe.category;
+            }
+            return "";
+          })(),
+          category_id:
+            recipe.category_id ||
+            (Array.isArray(recipe.category)
+              ? recipe.category[0]?._id
+              : recipe.category?._id) ||
+            "",
+          dateAdded:
+            recipe.date || recipe.createdAt || new Date().toISOString(),
+          createdAt:
+            recipe.createdAt || recipe.date || new Date().toISOString(),
+          updatedAt:
+            recipe.updatedAt || recipe.createdAt || new Date().toISOString(),
+          cookTime:
+            recipe.cookTime ||
+            recipe.cookingTime ||
+            recipe.prepTime ||
+            recipe.time ||
+            0,
+          servings: recipe.servings || recipe.servingSize || recipe.serves || 0,
+          description:
+            recipe.description ||
+            recipe.instructions ||
+            recipe.directions ||
+            "",
+          user: userData,
+        };
+      });
       setRecipes(mappedRecipes);
     } catch (error: any) {
       console.error("Error fetching recipes:", error);
@@ -324,6 +434,12 @@ export default function HomeScreen() {
                 key={recipe.id}
                 style={styles.recipeCard}
                 activeOpacity={0.8}
+                onPress={() => {
+                  const recipeId = recipe.id || (recipe as any)._id;
+                  if (recipeId) {
+                    router.push(`/recipe/${recipeId}` as any);
+                  }
+                }}
               >
                 <View style={styles.recipeImageContainer}>
                   {recipe.image ? (
@@ -344,19 +460,25 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.recipeContent}>
                   <ThemedText style={styles.recipeName} numberOfLines={1}>
-                    {recipe.name}
+                    {recipe.name || recipe.title || "Untitled Recipe"}
                   </ThemedText>
                   <ThemedText
                     style={styles.recipeDescription}
                     numberOfLines={2}
                   >
-                    {recipe.description}
+                    {recipe.description || ""}
+                  </ThemedText>
+                  <ThemedText style={styles.recipeCreator} numberOfLines={1}>
+                    Created By:{" "}
+                    {(recipe as any).user?.userName ||
+                      (recipe as any).user?.name ||
+                      (recipe as any).userName}
                   </ThemedText>
                   <View style={styles.recipeMeta}>
                     <View style={styles.recipeMetaItem}>
                       <Ionicons name="time-outline" size={14} color="#fff" />
                       <ThemedText style={styles.recipeMetaText}>
-                        {recipe.time}
+                        {recipe.cookTime || 0} min
                       </ThemedText>
                     </View>
                     <View style={styles.recipeMetaItem}>
@@ -366,21 +488,9 @@ export default function HomeScreen() {
                         color="#fff"
                       />
                       <ThemedText style={styles.recipeMetaText}>
-                        {recipe.difficulty}
+                        {recipe.servings || 0} servings
                       </ThemedText>
                     </View>
-                    <View style={styles.recipeMetaItem}>
-                      <Ionicons name="flame-outline" size={14} color="#fff" />
-                      <ThemedText style={styles.recipeMetaText}>
-                        {recipe.calories} kcal
-                      </ThemedText>
-                    </View>
-                  </View>
-                  <View style={styles.recipeRating}>
-                    <Ionicons name="star" size={16} color="#ffa500" />
-                    <ThemedText style={styles.recipeRatingText}>
-                      {recipe.rating}
-                    </ThemedText>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -513,6 +623,13 @@ export default function HomeScreen() {
                   key={recipe.id}
                   style={styles.allRecipesCard}
                   activeOpacity={0.8}
+                  onPress={() => {
+                    const recipeId = recipe.id || (recipe as any)._id;
+                    if (recipeId) {
+                      setShowAllRecipesModal(false);
+                      router.push(`/recipe/${recipeId}` as any);
+                    }
+                  }}
                 >
                   <View style={styles.allRecipesImageContainer}>
                     {recipe.image ? (
@@ -1070,6 +1187,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginBottom: 4,
     opacity: 0.95,
+  },
+  recipeCreator: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 4,
+    marginBottom: 8,
   },
   recipeDescription: {
     fontSize: 13,

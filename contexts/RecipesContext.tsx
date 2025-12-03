@@ -66,9 +66,6 @@ export function RecipesProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       
-      // Extract image URI before creating recipe (we'll upload it separately)
-      const imageUri = recipe.image || null;
-      
       // Ensure required fields are present
       // Backend requires: title, user_id, category_id
       const userId = user?.id || user?._id || '';
@@ -77,14 +74,15 @@ export function RecipesProvider({ children }: { children: ReactNode }) {
         title: recipe.title || recipe.name || '',
         user_id: userId,
         category_id: recipe.category_id || '',
-        // Don't include image in JSON payload - we'll upload it separately as FormData
-        image: undefined,
+        // Include image if it exists - createRecipe will handle FormData conversion
+        image: recipe.image || undefined,
       };
       
       console.log('Recipe data being sent:', { 
         title: recipeData.title, 
         user_id: recipeData.user_id, 
         category_id: recipeData.category_id,
+        hasImage: !!recipeData.image,
         hasUser: !!user 
       });
       
@@ -101,30 +99,17 @@ export function RecipesProvider({ children }: { children: ReactNode }) {
       
       console.log('Creating recipe with data:', recipeData);
       
-      // Create recipe first (without image)
+      // Create recipe (createRecipe will send as FormData if image is present)
       const newRecipe = await createRecipe(recipeData);
       
-      // Upload image separately as FormData if image exists
-      if (imageUri && newRecipe.id) {
-        try {
-          const recipeId = newRecipe.id || (newRecipe as any)?._id;
-          if (recipeId) {
-            await uploadRecipeImage(recipeId, imageUri);
-            console.log('Recipe image uploaded successfully');
-          }
-        } catch (imageError) {
-          console.error("Error uploading recipe image:", imageError);
-          // Don't throw - recipe was created successfully, just image upload failed
-          // You might want to show a warning to the user
-        }
-      }
+      console.log('Recipe created successfully:', newRecipe);
       
       // Map API response
       const mappedRecipe = {
         ...newRecipe,
         name: newRecipe.title || newRecipe.name,
         date: newRecipe.date || newRecipe.createdAt || new Date().toISOString(),
-        image: imageUri, // Keep the local image URI for display
+        image: newRecipe.image || recipe.image || null, // Use backend image URL if available
       };
       setMyRecipes((prev) => [mappedRecipe, ...prev]);
     } catch (err: any) {

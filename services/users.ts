@@ -1,4 +1,6 @@
 import api from './api';
+import { config } from '@/constants/config';
+import * as SecureStore from 'expo-secure-store';
 
 export interface User {
   id: string;
@@ -46,16 +48,33 @@ export const uploadProfileImage = async (id: string, imageUri: string): Promise<
   const match = /\.(\w+)$/.exec(filename);
   const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-  formData.append('image', {
+  // Backend expects field name 'profileImage' (not 'image')
+  formData.append('profileImage', {
     uri: imageUri,
     name: filename,
     type,
   } as any);
 
-  // Axios will automatically set Content-Type with boundary for FormData
-  const response = await api.post<User>(`/api/users/${id}/profile-image`, formData);
+  // Use fetch API for FormData in React Native to avoid XMLHttpRequest issues
+  const token = await SecureStore.getItemAsync('auth_token');
+  const url = `${config.API_BASE_URL}/api/users/${id}/profile-image`;
   
-  return response.data;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+      // Don't set Content-Type - React Native will set it automatically for FormData
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data;
 };
 
 // Delete profile image

@@ -6,9 +6,6 @@ import { router } from 'expo-router';
 // Create axios instance
 const api = axios.create({
   baseURL: config.API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 30000, // Increased timeout for network requests
   validateStatus: (status) => status < 500, // Don't throw on 4xx errors
 });
@@ -28,10 +25,17 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
       
-      // Don't set Content-Type for FormData - let axios handle it automatically
-      // FormData needs the boundary parameter which axios adds automatically
-      if (config.data instanceof FormData && config.headers) {
-        delete config.headers['Content-Type'];
+      // Handle Content-Type based on data type
+      if (config.headers) {
+        if (config.data instanceof FormData) {
+          // For FormData, don't set Content-Type - React Native will set it automatically
+          // with the correct multipart/form-data boundary
+          delete config.headers['Content-Type'];
+          delete config.headers['content-type'];
+        } else if (!config.headers['Content-Type'] && !config.headers['content-type']) {
+          // For non-FormData, set JSON content type if not already set
+          config.headers['Content-Type'] = 'application/json';
+        }
       }
     } catch (error) {
       console.error('Error retrieving token:', error);
