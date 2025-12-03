@@ -49,6 +49,15 @@ export default function SearchScreen() {
   const isNavigationLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { logout } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   const categories: CategoryType[] = [
     "All",
@@ -247,37 +256,157 @@ export default function SearchScreen() {
           </View>
         </View>
 
-          {isSearching ? (
-            /* Search Results */
+        {isSearching ? (
+          /* Search Results */
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {searchResults.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons
+                  name="search-outline"
+                  size={60}
+                  color="rgba(255, 255, 255, 0.6)"
+                />
+                <ThemedText style={styles.emptyText}>
+                  No results found
+                </ThemedText>
+                <ThemedText style={styles.emptySubtext}>
+                  Try a different search term
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.resultsContainer}>
+                <ThemedText style={styles.resultsHeader}>
+                  {searchResults.length} result
+                  {searchResults.length !== 1 ? "s" : ""} found
+                </ThemedText>
+                {searchResults.map((recipe) => (
+                  <TouchableOpacity
+                    key={recipe.id}
+                    style={styles.resultItem}
+                    onPress={() => {
+                      const recipeId = recipe.id || (recipe as any)._id;
+                      if (recipeId) {
+                        router.push(`/recipe/${recipeId}` as any);
+                      }
+                    }}
+                  >
+                    <View style={styles.resultContent}>
+                      <ThemedText style={styles.resultName}>
+                        {recipe.name || recipe.title || "Untitled Recipe"}
+                      </ThemedText>
+                      <View style={styles.resultMeta}>
+                        {recipe.category && (
+                          <ThemedText style={styles.resultCategory}>
+                            {Array.isArray(recipe.category)
+                              ? recipe.category
+                                  .map((cat) =>
+                                    typeof cat === "string"
+                                      ? cat
+                                      : (cat as any)?.categoryName ||
+                                        (cat as any)?.name ||
+                                        ""
+                                  )
+                                  .filter(Boolean)
+                                  .join(", ") || "Uncategorized"
+                              : typeof recipe.category === "string"
+                              ? recipe.category
+                              : (recipe.category as any)?.categoryName ||
+                                (recipe.category as any)?.name ||
+                                "Uncategorized"}
+                          </ThemedText>
+                        )}
+                        {recipe.rating && (
+                          <View style={styles.ratingContainer}>
+                            <Ionicons name="star" size={14} color="#ffa500" />
+                            <ThemedText style={styles.rating}>
+                              {recipe.rating}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="rgba(255, 255, 255, 0.7)"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        ) : (
+          /* Explore Grid View */
+          <View style={styles.exploreContainer}>
+            {/* Category Tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryScroll}
+              contentContainerStyle={styles.categoryContainer}
+            >
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  onPress={() => setActiveCategory(category)}
+                  style={[
+                    styles.categoryTab,
+                    activeCategory === category && styles.activeCategoryTab,
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      styles.categoryText,
+                      activeCategory === category && styles.activeCategoryText,
+                    ]}
+                  >
+                    {category}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Recipe Grid */}
             <ScrollView
               style={styles.scrollView}
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={styles.gridContent}
               showsVerticalScrollIndicator={false}
             >
-              {searchResults.length === 0 ? (
+              {isLoadingRecipes ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <ThemedText style={styles.loadingText}>
+                    Loading recipes...
+                  </ThemedText>
+                </View>
+              ) : filteredRecipes.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Ionicons
-                    name="search-outline"
+                    name="restaurant-outline"
                     size={60}
                     color="rgba(255, 255, 255, 0.6)"
                   />
                   <ThemedText style={styles.emptyText}>
-                    No results found
+                    No recipes found
                   </ThemedText>
                   <ThemedText style={styles.emptySubtext}>
-                    Try a different search term
+                    {activeCategory === "Categories"
+                      ? "No recipes with categories found"
+                      : activeCategory === "Ingredients"
+                      ? "No recipes with ingredients found"
+                      : "Recipes will appear here once they're posted"}
                   </ThemedText>
                 </View>
               ) : (
-                <View style={styles.resultsContainer}>
-                  <ThemedText style={styles.resultsHeader}>
-                    {searchResults.length} result
-                    {searchResults.length !== 1 ? "s" : ""} found
-                  </ThemedText>
-                  {searchResults.map((recipe) => (
+                <View style={styles.recipeGrid}>
+                  {filteredRecipes.map((recipe) => (
                     <TouchableOpacity
                       key={recipe.id}
-                      style={styles.resultItem}
+                      style={styles.recipeCard}
                       onPress={() => {
                         const recipeId = recipe.id || (recipe as any)._id;
                         if (recipeId) {
@@ -285,158 +414,36 @@ export default function SearchScreen() {
                         }
                       }}
                     >
-                      <View style={styles.resultContent}>
-                        <ThemedText style={styles.resultName}>
-                          {recipe.name || recipe.title || "Untitled Recipe"}
-                        </ThemedText>
-                        <View style={styles.resultMeta}>
-                          {recipe.category && (
-                            <ThemedText style={styles.resultCategory}>
-                              {Array.isArray(recipe.category)
-                                ? recipe.category
-                                    .map((cat) =>
-                                      typeof cat === "string"
-                                        ? cat
-                                        : (cat as any)?.categoryName ||
-                                          (cat as any)?.name ||
-                                          ""
-                                    )
-                                    .filter(Boolean)
-                                    .join(", ") || "Uncategorized"
-                                : typeof recipe.category === "string"
-                                ? recipe.category
-                                : (recipe.category as any)?.categoryName ||
-                                  (recipe.category as any)?.name ||
-                                  "Uncategorized"}
-                            </ThemedText>
-                          )}
-                          {recipe.rating && (
-                            <View style={styles.ratingContainer}>
-                              <Ionicons name="star" size={14} color="#ffa500" />
-                              <ThemedText style={styles.rating}>
-                                {recipe.rating}
-                              </ThemedText>
-                            </View>
-                          )}
-                        </View>
+                      <View style={styles.recipeImageContainer}>
+                        {recipe.image ? (
+                          <Image
+                            source={{ uri: recipe.image }}
+                            style={styles.recipeImage}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="restaurant-outline"
+                            size={30}
+                            color="rgba(255, 255, 255, 0.7)"
+                          />
+                        )}
                       </View>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={20}
-                        color="rgba(255, 255, 255, 0.7)"
-                      />
+                      <ThemedText
+                        style={styles.recipeCardName}
+                        numberOfLines={1}
+                      >
+                        {recipe.name || recipe.title || "Untitled Recipe"}
+                      </ThemedText>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </ScrollView>
-          ) : (
-            /* Explore Grid View */
-            <View style={styles.exploreContainer}>
-              {/* Category Tabs */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.categoryScroll}
-                contentContainerStyle={styles.categoryContainer}
-              >
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    onPress={() => setActiveCategory(category)}
-                    style={[
-                      styles.categoryTab,
-                      activeCategory === category && styles.activeCategoryTab,
-                    ]}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.categoryText,
-                        activeCategory === category &&
-                          styles.activeCategoryText,
-                      ]}
-                    >
-                      {category}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Recipe Grid */}
-              <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.gridContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {isLoadingRecipes ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#fff" />
-                    <ThemedText style={styles.loadingText}>
-                      Loading recipes...
-                    </ThemedText>
-                  </View>
-                ) : filteredRecipes.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons
-                      name="restaurant-outline"
-                      size={60}
-                      color="rgba(255, 255, 255, 0.6)"
-                    />
-                    <ThemedText style={styles.emptyText}>
-                      No recipes found
-                    </ThemedText>
-                    <ThemedText style={styles.emptySubtext}>
-                      {activeCategory === "Categories"
-                        ? "No recipes with categories found"
-                        : activeCategory === "Ingredients"
-                        ? "No recipes with ingredients found"
-                        : "Recipes will appear here once they're posted"}
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <View style={styles.recipeGrid}>
-                    {filteredRecipes.map((recipe) => (
-                      <TouchableOpacity
-                        key={recipe.id}
-                        style={styles.recipeCard}
-                        onPress={() => {
-                          const recipeId = recipe.id || (recipe as any)._id;
-                          if (recipeId) {
-                            router.push(`/recipe/${recipeId}` as any);
-                          }
-                        }}
-                      >
-                        <View style={styles.recipeImageContainer}>
-                          {recipe.image ? (
-                            <Image
-                              source={{ uri: recipe.image }}
-                              style={styles.recipeImage}
-                              contentFit="cover"
-                            />
-                          ) : (
-                            <Ionicons
-                              name="restaurant-outline"
-                              size={30}
-                              color="rgba(255, 255, 255, 0.7)"
-                            />
-                          )}
-                        </View>
-                        <ThemedText
-                          style={styles.recipeCardName}
-                          numberOfLines={1}
-                        >
-                          {recipe.name || recipe.title || "Untitled Recipe"}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
-    </View>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
