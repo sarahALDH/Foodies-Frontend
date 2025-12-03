@@ -5,13 +5,15 @@ import RecipeType from "@/types/RecipeType";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  ImageBackground,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const API_BASE_URL = "http://134.122.96.197:3000";
 
@@ -109,6 +111,7 @@ export default function RecipesScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigationLoading = useNavigationLoading();
+  const insets = useSafeAreaInsets();
 
   const fetchRecipes = async () => {
     try {
@@ -121,8 +124,11 @@ export default function RecipesScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Recipes screen API response:', JSON.stringify(data, null, 2));
-        
+        console.log(
+          "Recipes screen API response:",
+          JSON.stringify(data, null, 2)
+        );
+
         // Handle different response structures
         let recipesArray: RecipeType[] = [];
         if (Array.isArray(data)) {
@@ -132,16 +138,28 @@ export default function RecipesScreen() {
         } else if (data?.recipes && Array.isArray(data.recipes)) {
           recipesArray = data.recipes;
         } else {
-          console.warn('Unexpected recipes response structure:', data);
+          console.warn("Unexpected recipes response structure:", data);
           recipesArray = [];
         }
-        
-        // Map _id to id if needed
+
+        // Map _id to id if needed and ensure user data is properly structured
         const mappedRecipes = recipesArray.map((recipe: any) => ({
           ...recipe,
           id: recipe.id || recipe._id || String(Date.now() + Math.random()),
+          user: recipe.user || {
+            _id: recipe.user_id || recipe.userId || "",
+            userName:
+              recipe.user?.userName ||
+              recipe.user?.name ||
+              recipe.userName ||
+              "Unknown Chef",
+            userProfilePicture:
+              recipe.user?.userProfilePicture ||
+              recipe.user?.profileImage ||
+              null,
+          },
         }));
-        
+
         setRecipes(mappedRecipes);
         setError(null);
       } else {
@@ -150,7 +168,7 @@ export default function RecipesScreen() {
         setError("Failed to load recipes. Showing demo data.");
       }
     } catch (err) {
-      console.error('Error fetching recipes:', err);
+      console.error("Error fetching recipes:", err);
       // Fallback to mock data on error
       setRecipes(mockRecipes);
       setError("Unable to connect to server. Showing demo data.");
@@ -171,32 +189,34 @@ export default function RecipesScreen() {
 
   if (navigationLoading) {
     return (
-      <ImageBackground
-        source={require("@/assets/images/background.png")}
-        style={styles.container}
-        resizeMode="cover"
-      >
-        <View style={styles.overlay} />
+      <View style={styles.container}>
+        <View style={styles.backgroundElements}>
+          <View style={styles.circle1} />
+          <View style={styles.circle2} />
+          <View style={styles.circle3} />
+        </View>
         <SafeAreaView style={styles.container} edges={["top"]}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#83ab64" />
+            <ActivityIndicator size="large" color="#fff" />
           </View>
         </SafeAreaView>
-      </ImageBackground>
+      </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("@/assets/images/background.png")}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay} />
+    <View style={styles.container}>
+      {/* Creative Background Elements */}
+      <View style={styles.backgroundElements}>
+        <View style={styles.circle1} />
+        <View style={styles.circle2} />
+        <View style={styles.circle3} />
+      </View>
+
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.content}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
             <ThemedText style={styles.title}>Recipes</ThemedText>
             {error && <ThemedText style={styles.errorText}>{error}</ThemedText>}
           </View>
@@ -218,7 +238,9 @@ export default function RecipesScreen() {
             </View>
           ) : !Array.isArray(recipes) ? (
             <View style={styles.emptyContainer}>
-              <ThemedText style={styles.emptyText}>Error loading recipes</ThemedText>
+              <ThemedText style={styles.emptyText}>
+                Error loading recipes
+              </ThemedText>
               <ThemedText style={styles.emptySubtext}>
                 Please try refreshing
               </ThemedText>
@@ -232,7 +254,7 @@ export default function RecipesScreen() {
                 <RefreshControl
                   refreshing={isRefreshing}
                   onRefresh={handleRefresh}
-                  tintColor="#83ab64"
+                  tintColor="#fff"
                 />
               }
             >
@@ -248,34 +270,69 @@ export default function RecipesScreen() {
           )}
         </View>
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#1a4d2e", // Dark forest green
+    position: "relative",
+  },
+  backgroundElements: {
+    position: "absolute",
     width: "100%",
     height: "100%",
+    top: 0,
+    left: 0,
+    zIndex: 0,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  circle1: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    top: -50,
+    right: -50,
+  },
+  circle2: {
+    position: "absolute",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    bottom: 100,
+    left: -30,
+  },
+  circle3: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255, 255, 255, 0.025)",
+    top: "40%",
+    right: 20,
   },
   content: {
     flex: 1,
     backgroundColor: "transparent",
+    zIndex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    paddingTop: 0,
     backgroundColor: "transparent",
+    zIndex: 10,
   },
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#080808",
+    color: "#fff",
     marginBottom: 8,
+    opacity: 1,
   },
   errorText: {
     fontSize: 14,
@@ -299,7 +356,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#080808",
+    color: "#fff",
     opacity: 0.7,
   },
   emptyContainer: {
@@ -314,14 +371,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 16,
     marginBottom: 8,
-    color: "#080808",
+    color: "#fff",
+    opacity: 0.9,
   },
   emptySubtext: {
     fontSize: 14,
     opacity: 0.7,
     textAlign: "center",
     paddingHorizontal: 48,
-    color: "#080808",
+    color: "rgba(255, 255, 255, 0.8)",
   },
   recipeSpacing: {
     marginTop: 16,

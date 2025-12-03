@@ -9,7 +9,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
     <View
       style={{
         flex: 1,
-        backgroundColor: "green",
+        backgroundColor: "transparent",
         padding: 20,
         alignItems: "center",
         justifyContent: "center",
@@ -17,7 +17,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
     >
       <View
         style={{
-          backgroundColor: "lightblue",
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
           padding: 20,
           width: "100%",
           borderRadius: 15,
@@ -30,6 +30,8 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
           },
           shadowOpacity: 0.25,
           shadowRadius: 3.84,
+          borderWidth: 1,
+          borderColor: "rgba(255, 255, 255, 0.2)",
         }}
       >
         <Text
@@ -38,7 +40,10 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
             fontSize: 24,
             fontWeight: "bold",
             marginBottom: 8,
+            flexWrap: "wrap",
+            flexShrink: 1,
           }}
+          numberOfLines={0}
         >
           {recipe.title}
         </Text>
@@ -50,7 +55,11 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
             opacity: 0.8,
           }}
         >
-          Created By: {recipe.user?.userName ?? "Unknown Chef"}
+          Created By:{" "}
+          {recipe.user?.userName ||
+            (recipe.user as any)?.name ||
+            (recipe as any)?.userName ||
+            "Unknown Chef"}
         </Text>
 
         {/* Recipe Info Row */}
@@ -64,7 +73,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
         >
           <View
             style={{
-              backgroundColor: "lightgreen",
+              backgroundColor: "rgba(255, 255, 255, 0.15)",
               padding: 8,
               borderRadius: 8,
             }}
@@ -75,7 +84,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
           </View>
           <View
             style={{
-              backgroundColor: "lightgreen",
+              backgroundColor: "rgba(255, 255, 255, 0.15)",
               padding: 8,
               borderRadius: 8,
             }}
@@ -102,7 +111,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
             ) => (
               <View
                 style={{
-                  backgroundColor: "lightgreen",
+                  backgroundColor: "rgba(255, 255, 255, 0.15)",
                   padding: 12,
                   borderRadius: 10,
                   marginBottom: 5,
@@ -117,14 +126,20 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
 
         <TouchableOpacity
           style={{
-            backgroundColor: "lightgreen",
+            backgroundColor: "rgba(255, 255, 255, 0.15)",
             padding: 12,
             borderRadius: 10,
             width: "100%",
             alignItems: "center",
             marginBottom: 5,
           }}
-          onPress={() => router.push(`/(tabs)/recipes`)}
+          onPress={() => {
+            // Navigate to recipe detail endpoint
+            const recipeId = recipe.id || (recipe as any)._id;
+            if (recipeId) {
+              router.push(`/recipe/${recipeId}` as any);
+            }
+          }}
         >
           <Text
             style={{
