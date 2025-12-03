@@ -2,8 +2,10 @@ import { SearchSkeleton } from "@/components/skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { Image } from "expo-image";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -15,36 +17,30 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-// Mock recipes for grid view
-const mockExploreRecipes = [
-  { id: "1", name: "Homemade Pasta", category: "Italian", image: null },
-  { id: "2", name: "Chocolate Cake", category: "Dessert", image: null },
-  { id: "3", name: "Grilled Salmon", category: "Seafood", image: null },
-  { id: "4", name: "Vegetable Stir Fry", category: "Vegetarian", image: null },
-  { id: "5", name: "Beef Steak", category: "Meat", image: null },
-  { id: "6", name: "Caesar Salad", category: "Salad", image: null },
-  { id: "7", name: "Margherita Pizza", category: "Italian", image: null },
-  { id: "8", name: "Chicken Curry", category: "Asian", image: null },
-  { id: "9", name: "Apple Pie", category: "Dessert", image: null },
-];
+// Get API base URL from environment variable
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || "https://your-api-url.com";
 
-// Mock search results
-const mockRecipes = [
-  { id: "1", name: "Homemade Pasta", category: "Italian", rating: 4.5 },
-  { id: "2", name: "Chocolate Cake", category: "Dessert", rating: 4.8 },
-  { id: "3", name: "Grilled Salmon", category: "Seafood", rating: 4.6 },
-  { id: "4", name: "Vegetable Stir Fry", category: "Vegetarian", rating: 4.4 },
-  { id: "5", name: "Beef Steak", category: "Meat", rating: 4.7 },
-  { id: "6", name: "Caesar Salad", category: "Salad", rating: 4.3 },
-];
+interface Recipe {
+  id: string;
+  name?: string;
+  title?: string;
+  category?: string;
+  category_id?: string;
+  image?: string | null;
+  rating?: number;
+  description?: string;
+}
 
 type CategoryType = "All" | "Recipes" | "Ingredients" | "Categories";
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<typeof mockRecipes>([]);
+  const [searchResults, setSearchResults] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
   const [activeCategory, setActiveCategory] = useState<CategoryType>("All");
-  const isLoading = useNavigationLoading();
+  const isNavigationLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
 
   const categories: CategoryType[] = [
@@ -54,14 +50,51 @@ export default function SearchScreen() {
     "Categories",
   ];
 
+  // Fetch recipes from backend
+  useEffect(() => {
+    const fetchRecipes = async () => {
+      setIsLoadingRecipes(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/recipes`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Handle different response formats
+          const recipesData = Array.isArray(data)
+            ? data
+            : data.recipes || data.data || [];
+          setRecipes(recipesData);
+        } else {
+          console.error("Failed to fetch recipes:", response.status);
+          // Set empty array on error
+          setRecipes([]);
+        }
+      } catch (error) {
+        console.error("Error fetching recipes:", error);
+        // Set empty array on error
+        setRecipes([]);
+      } finally {
+        setIsLoadingRecipes(false);
+      }
+    };
+
+    fetchRecipes();
+  }, []);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (query.trim()) {
-      const filtered = mockRecipes.filter(
-        (recipe) =>
-          recipe.name.toLowerCase().includes(query.toLowerCase()) ||
-          recipe.category.toLowerCase().includes(query.toLowerCase())
-      );
+      const filtered = recipes.filter((recipe) => {
+        const name = (recipe.name || recipe.title || "").toLowerCase();
+        const category = (recipe.category || "").toLowerCase();
+        const searchLower = query.toLowerCase();
+        return name.includes(searchLower) || category.includes(searchLower);
+      });
       setSearchResults(filtered);
     } else {
       setSearchResults([]);
@@ -73,7 +106,7 @@ export default function SearchScreen() {
     setSearchResults([]);
   };
 
-  if (isLoading) {
+  if (isNavigationLoading) {
     return (
       <View style={styles.container}>
         <SearchSkeleton />
@@ -154,18 +187,22 @@ export default function SearchScreen() {
                     <TouchableOpacity key={recipe.id} style={styles.resultItem}>
                       <View style={styles.resultContent}>
                         <ThemedText style={styles.resultName}>
-                          {recipe.name}
+                          {recipe.name || recipe.title || "Untitled Recipe"}
                         </ThemedText>
                         <View style={styles.resultMeta}>
-                          <ThemedText style={styles.resultCategory}>
-                            {recipe.category}
-                          </ThemedText>
-                          <View style={styles.ratingContainer}>
-                            <Ionicons name="star" size={14} color="#ffa500" />
-                            <ThemedText style={styles.rating}>
-                              {recipe.rating}
+                          {recipe.category && (
+                            <ThemedText style={styles.resultCategory}>
+                              {recipe.category}
                             </ThemedText>
-                          </View>
+                          )}
+                          {recipe.rating && (
+                            <View style={styles.ratingContainer}>
+                              <Ionicons name="star" size={14} color="#ffa500" />
+                              <ThemedText style={styles.rating}>
+                                {recipe.rating}
+                              </ThemedText>
+                            </View>
+                          )}
                         </View>
                       </View>
                       <Ionicons
@@ -216,29 +253,59 @@ export default function SearchScreen() {
                 contentContainerStyle={styles.gridContent}
                 showsVerticalScrollIndicator={false}
               >
-                <View style={styles.recipeGrid}>
-                  {mockExploreRecipes.map((recipe) => (
-                    <TouchableOpacity key={recipe.id} style={styles.recipeCard}>
-                      <View style={styles.recipeImageContainer}>
-                        {recipe.image ? (
-                          <View style={styles.recipeImagePlaceholder} />
-                        ) : (
-                          <Ionicons
-                            name="restaurant-outline"
-                            size={30}
-                            color="rgba(255, 255, 255, 0.7)"
-                          />
-                        )}
-                      </View>
-                      <ThemedText
-                        style={styles.recipeCardName}
-                        numberOfLines={1}
+                {isLoadingRecipes ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#fff" />
+                    <ThemedText style={styles.loadingText}>
+                      Loading recipes...
+                    </ThemedText>
+                  </View>
+                ) : recipes.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons
+                      name="restaurant-outline"
+                      size={60}
+                      color="rgba(255, 255, 255, 0.6)"
+                    />
+                    <ThemedText style={styles.emptyText}>
+                      No recipes found
+                    </ThemedText>
+                    <ThemedText style={styles.emptySubtext}>
+                      Recipes will appear here once they're posted
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <View style={styles.recipeGrid}>
+                    {recipes.map((recipe) => (
+                      <TouchableOpacity
+                        key={recipe.id}
+                        style={styles.recipeCard}
                       >
-                        {recipe.name}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                        <View style={styles.recipeImageContainer}>
+                          {recipe.image ? (
+                            <Image
+                              source={{ uri: recipe.image }}
+                              style={styles.recipeImage}
+                              contentFit="cover"
+                            />
+                          ) : (
+                            <Ionicons
+                              name="restaurant-outline"
+                              size={30}
+                              color="rgba(255, 255, 255, 0.7)"
+                            />
+                          )}
+                        </View>
+                        <ThemedText
+                          style={styles.recipeCardName}
+                          numberOfLines={1}
+                        >
+                          {recipe.name || recipe.title || "Untitled Recipe"}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </ScrollView>
             </View>
           )}
@@ -454,11 +521,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  recipeImagePlaceholder: {
+  recipeImage: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 64,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: "#fff",
+    opacity: 0.7,
   },
   recipeCardName: {
     position: "absolute",
