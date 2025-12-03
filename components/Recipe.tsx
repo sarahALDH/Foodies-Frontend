@@ -58,7 +58,9 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
           Created By:{" "}
           {recipe.user?.userName ||
             (recipe.user as any)?.name ||
+            (recipe.user as any)?.username ||
             (recipe as any)?.userName ||
+            (recipe as any)?.username ||
             "Unknown Chef"}
         </Text>
 
@@ -79,7 +81,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
             }}
           >
             <Text style={{ color: "white", fontSize: 12 }}>
-              ⏱️ {recipe.cookTime} min
+              ⏱️ {recipe.cookTime || 0} min
             </Text>
           </View>
           <View
@@ -90,7 +92,7 @@ const Recipe = ({ recipe }: { recipe: RecipeType }) => {
             }}
           >
             <Text style={{ color: "white", fontSize: 12 }}>
-              🍽️ {recipe.servings} servings
+              🍽️ {recipe.servings || 0} servings
             </Text>
           </View>
         </View>

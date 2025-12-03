@@ -143,22 +143,39 @@ export default function RecipesScreen() {
         }
 
         // Map _id to id if needed and ensure user data is properly structured
-        const mappedRecipes = recipesArray.map((recipe: any) => ({
-          ...recipe,
-          id: recipe.id || recipe._id || String(Date.now() + Math.random()),
-          user: recipe.user || {
-            _id: recipe.user_id || recipe.userId || "",
-            userName:
-              recipe.user?.userName ||
-              recipe.user?.name ||
-              recipe.userName ||
-              "Unknown Chef",
-            userProfilePicture:
-              recipe.user?.userProfilePicture ||
-              recipe.user?.profileImage ||
-              null,
-          },
-        }));
+        const mappedRecipes = recipesArray.map((recipe: any) => {
+          // Extract user data from various possible locations
+          let userData;
+          if (recipe.user && typeof recipe.user === 'object') {
+            // User object exists
+            userData = {
+              _id: recipe.user._id || recipe.user.id || recipe.user_id || recipe.userId || "",
+              userName: recipe.user.userName || recipe.user.name || recipe.user.username || "",
+              userProfilePicture: recipe.user.userProfilePicture || recipe.user.profileImage || recipe.user.avatar || null,
+            };
+          } else {
+            // Try to extract from top-level fields
+            userData = {
+              _id: recipe.user_id || recipe.userId || "",
+              userName: recipe.userName || recipe.username || "",
+              userProfilePicture: recipe.userProfilePicture || recipe.profileImage || null,
+            };
+          }
+
+          // Log for debugging if username is missing
+          if (!userData.userName) {
+            console.log("Missing username for recipe:", recipe.id || recipe._id, "Recipe data:", JSON.stringify(recipe, null, 2));
+          }
+
+          return {
+            ...recipe,
+            id: recipe.id || recipe._id || String(Date.now() + Math.random()),
+            title: recipe.title || recipe.name || recipe.recipeName || "",
+            cookTime: recipe.cookTime || recipe.cookingTime || recipe.prepTime || recipe.time || 0,
+            servings: recipe.servings || recipe.servingSize || recipe.serves || 0,
+            user: userData,
+          };
+        });
 
         setRecipes(mappedRecipes);
         setError(null);

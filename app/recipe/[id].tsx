@@ -35,30 +35,85 @@ export default function RecipeDetailScreen() {
       setIsLoading(true);
       setError(null);
 
+      // Helper function to construct image URL
+      const getImageUrl = (imagePath: any): string | null => {
+        if (!imagePath) return null;
+        if (typeof imagePath === "string") {
+          // If it's already a full URL, return it
+          if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+            return imagePath;
+          }
+          // If it's a relative path, construct full URL
+          if (imagePath.startsWith("/")) {
+            return `${API_BASE_URL}${imagePath}`;
+          }
+          return `${API_BASE_URL}/${imagePath}`;
+        }
+        return null;
+      };
+
+      // Helper function to extract user data
+      const extractUserData = (recipeData: any) => {
+        // Try nested user object first
+        if (recipeData.user) {
+          return {
+            _id: recipeData.user._id || recipeData.user.id || recipeData.user_id || recipeData.userId || "",
+            userName: recipeData.user.userName || recipeData.user.name || recipeData.user.username || recipeData.userName || "",
+            userProfilePicture: recipeData.user.userProfilePicture || recipeData.user.profileImage || recipeData.user.avatar || null,
+          };
+        }
+        // Try top-level user fields
+        if (recipeData.user_id || recipeData.userId) {
+          return {
+            _id: recipeData.user_id || recipeData.userId || "",
+            userName: recipeData.userName || recipeData.username || "",
+            userProfilePicture: null,
+          };
+        }
+        return null;
+      };
+
       // Try using the service first
       try {
         const recipeData = await getRecipeById(id);
+        console.log("Recipe detail API response:", JSON.stringify(recipeData, null, 2));
+        
+        const userData = extractUserData(recipeData);
+        const imageUrl = getImageUrl(
+          recipeData.image || 
+          (recipeData as any).imageUrl || 
+          (recipeData as any).imagePath ||
+          (recipeData as any).photo ||
+          (recipeData as any).photoUrl
+        );
+        
         // Map the response to RecipeType format
         const mappedRecipe: RecipeType = {
           id: recipeData.id || (recipeData as any)._id || id,
-          title: recipeData.title || (recipeData as any).name || "",
+          title: recipeData.title || (recipeData as any).name || (recipeData as any).recipeName || "",
           date: recipeData.date || recipeData.createdAt || new Date().toISOString(),
-          createdAt: recipeData.createdAt || new Date().toISOString(),
-          updatedAt: recipeData.updatedAt || new Date().toISOString(),
+          createdAt: recipeData.createdAt || recipeData.date || new Date().toISOString(),
+          updatedAt: recipeData.updatedAt || recipeData.createdAt || new Date().toISOString(),
           comments: (recipeData as any).comments || 0,
-          image: recipeData.image || null,
-          servings: recipeData.servings || 0,
-          cookTime: recipeData.cookTime || 0,
-          description: recipeData.description || "",
-          user: (recipeData as any).user || {
-            _id: recipeData.user_id || (recipeData as any).userId || "",
-            userName: (recipeData as any).user?.userName || (recipeData as any).user?.name || "Unknown Chef",
-            userProfilePicture: (recipeData as any).user?.userProfilePicture || null,
+          image: imageUrl,
+          servings: recipeData.servings || (recipeData as any).servingSize || (recipeData as any).serves || 0,
+          cookTime: recipeData.cookTime || (recipeData as any).cookingTime || (recipeData as any).prepTime || (recipeData as any).time || 0,
+          description: recipeData.description || (recipeData as any).instructions || (recipeData as any).directions || "",
+          user: userData || {
+            _id: "",
+            userName: "",
+            userProfilePicture: null,
           },
-          category: (recipeData as any).category || [],
+          category: Array.isArray((recipeData as any).category) 
+            ? (recipeData as any).category.map((cat: any) => ({
+                _id: cat._id || cat.id || "",
+                categoryName: cat.categoryName || cat.name || cat || "",
+              }))
+            : [],
         };
         setRecipe(mappedRecipe);
       } catch (serviceError) {
+        console.log("Service error, trying direct API call:", serviceError);
         // Fallback to direct API call
         const response = await fetch(`${API_BASE_URL}/api/recipes/${id}`, {
           method: "GET",
@@ -69,24 +124,40 @@ export default function RecipeDetailScreen() {
 
         if (response.ok) {
           const data = await response.json();
+          console.log("Direct API response:", JSON.stringify(data, null, 2));
           const recipeData = data.data || data;
+          
+          const userData = extractUserData(recipeData);
+          const imageUrl = getImageUrl(
+            recipeData.image || 
+            recipeData.imageUrl || 
+            recipeData.imagePath ||
+            recipeData.photo ||
+            recipeData.photoUrl
+          );
+          
           const mappedRecipe: RecipeType = {
             id: recipeData.id || recipeData._id || id,
-            title: recipeData.title || recipeData.name || "",
+            title: recipeData.title || recipeData.name || recipeData.recipeName || "",
             date: recipeData.date || recipeData.createdAt || new Date().toISOString(),
-            createdAt: recipeData.createdAt || new Date().toISOString(),
-            updatedAt: recipeData.updatedAt || new Date().toISOString(),
+            createdAt: recipeData.createdAt || recipeData.date || new Date().toISOString(),
+            updatedAt: recipeData.updatedAt || recipeData.createdAt || new Date().toISOString(),
             comments: recipeData.comments || 0,
-            image: recipeData.image || null,
-            servings: recipeData.servings || 0,
-            cookTime: recipeData.cookTime || 0,
-            description: recipeData.description || "",
-            user: recipeData.user || {
-              _id: recipeData.user_id || recipeData.userId || "",
-              userName: recipeData.user?.userName || recipeData.user?.name || "Unknown Chef",
-              userProfilePicture: recipeData.user?.userProfilePicture || null,
+            image: imageUrl,
+            servings: recipeData.servings || recipeData.servingSize || recipeData.serves || 0,
+            cookTime: recipeData.cookTime || recipeData.cookingTime || recipeData.prepTime || recipeData.time || 0,
+            description: recipeData.description || recipeData.instructions || recipeData.directions || "",
+            user: userData || {
+              _id: "",
+              userName: "",
+              userProfilePicture: null,
             },
-            category: recipeData.category || [],
+            category: Array.isArray(recipeData.category) 
+              ? recipeData.category.map((cat: any) => ({
+                  _id: cat._id || cat.id || "",
+                  categoryName: cat.categoryName || cat.name || cat || "",
+                }))
+              : [],
           };
           setRecipe(mappedRecipe);
         } else {
@@ -176,23 +247,27 @@ export default function RecipeDetailScreen() {
           </View>
 
           {/* Recipe Image */}
-          {recipe.image && (
-            <View style={styles.imageContainer}>
+          <View style={styles.imageContainer}>
+            {recipe.image ? (
               <Image
                 source={{ uri: recipe.image }}
                 style={styles.image}
                 resizeMode="cover"
               />
-            </View>
-          )}
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="restaurant" size={60} color="rgba(255, 255, 255, 0.5)" />
+              </View>
+            )}
+          </View>
 
           {/* Recipe Info */}
           <View style={styles.infoContainer}>
-            <ThemedText style={styles.title}>{recipe.title}</ThemedText>
+            <ThemedText style={styles.title}>{recipe.title || "Untitled Recipe"}</ThemedText>
 
             <View style={styles.metaRow}>
               <ThemedText style={styles.metaText}>
-                Created By: {recipe.user?.userName || "Unknown Chef"}
+                Created By: {recipe.user?.userName || (recipe.user as any)?.name || (recipe as any)?.userName || "Unknown Chef"}
               </ThemedText>
               <ThemedText style={styles.metaText}>
                 {formatTime(recipe.createdAt)}
@@ -226,13 +301,11 @@ export default function RecipeDetailScreen() {
             )}
 
             {/* Description */}
-            {recipe.description && (
-              <View style={styles.descriptionWrapper}>
-                <ThemedText style={styles.description}>
-                  {recipe.description}
-                </ThemedText>
-              </View>
-            )}
+            <View style={styles.descriptionWrapper}>
+              <ThemedText style={styles.description}>
+                {recipe.description || "No description available."}
+              </ThemedText>
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -315,6 +388,13 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
+  },
+  imagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   infoContainer: {
     paddingHorizontal: 20,

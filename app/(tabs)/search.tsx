@@ -158,7 +158,20 @@ export default function SearchScreen() {
                         </ThemedText>
                         <View style={styles.resultMeta}>
                           <ThemedText style={styles.resultCategory}>
-                            {recipe.category}
+                            {Array.isArray(recipe.category)
+                              ? recipe.category
+                                  .map((cat: any) =>
+                                    typeof cat === "string"
+                                      ? cat
+                                      : cat?.categoryName || cat?.name || ""
+                                  )
+                                  .filter(Boolean)
+                                  .join(", ") || "Uncategorized"
+                              : typeof recipe.category === "string"
+                              ? recipe.category
+                              : recipe.category?.categoryName ||
+                                recipe.category?.name ||
+                                "Uncategorized"}
                           </ThemedText>
                           <View style={styles.ratingContainer}>
                             <Ionicons name="star" size={14} color="#ffa500" />
