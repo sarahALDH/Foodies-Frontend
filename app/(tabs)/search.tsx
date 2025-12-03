@@ -3,6 +3,7 @@ import { ThemedText } from "@/components/themed-text";
 import { useNavigationLoading } from "@/hooks/use-navigation-loading";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,6 +47,7 @@ export default function SearchScreen() {
   const [activeCategory, setActiveCategory] = useState<CategoryType>("All");
   const isNavigationLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const categories: CategoryType[] = [
     "All",
@@ -131,6 +133,52 @@ export default function SearchScreen() {
     setSearchResults([]);
   };
 
+  // Filter recipes based on active category
+  const getFilteredRecipes = () => {
+    if (activeCategory === "All") {
+      return recipes;
+    }
+
+    return recipes.filter((recipe) => {
+      switch (activeCategory) {
+        case "Recipes":
+          // Show all recipes (same as All)
+          return true;
+
+        case "Ingredients":
+          // For now, show all recipes
+          // In the future, this could filter by ingredients if ingredient data is available
+          return true;
+
+        case "Categories":
+          // Filter recipes that have categories
+          if (recipe.category) {
+            if (Array.isArray(recipe.category) && recipe.category.length > 0) {
+              return true;
+            }
+            if (
+              typeof recipe.category === "object" &&
+              recipe.category !== null
+            ) {
+              return true;
+            }
+            if (
+              typeof recipe.category === "string" &&
+              recipe.category.trim() !== ""
+            ) {
+              return true;
+            }
+          }
+          return false;
+
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredRecipes = getFilteredRecipes();
+
   if (isNavigationLoading) {
     return (
       <View style={styles.container}>
@@ -209,7 +257,16 @@ export default function SearchScreen() {
                     {searchResults.length !== 1 ? "s" : ""} found
                   </ThemedText>
                   {searchResults.map((recipe) => (
-                    <TouchableOpacity key={recipe.id} style={styles.resultItem}>
+                    <TouchableOpacity
+                      key={recipe.id}
+                      style={styles.resultItem}
+                      onPress={() => {
+                        const recipeId = recipe.id || (recipe as any)._id;
+                        if (recipeId) {
+                          router.push(`/recipe/${recipeId}` as any);
+                        }
+                      }}
+                    >
                       <View style={styles.resultContent}>
                         <ThemedText style={styles.resultName}>
                           {recipe.name || recipe.title || "Untitled Recipe"}
@@ -300,7 +357,7 @@ export default function SearchScreen() {
                       Loading recipes...
                     </ThemedText>
                   </View>
-                ) : recipes.length === 0 ? (
+                ) : filteredRecipes.length === 0 ? (
                   <View style={styles.emptyContainer}>
                     <Ionicons
                       name="restaurant-outline"
@@ -311,15 +368,25 @@ export default function SearchScreen() {
                       No recipes found
                     </ThemedText>
                     <ThemedText style={styles.emptySubtext}>
-                      Recipes will appear here once they're posted
+                      {activeCategory === "Categories"
+                        ? "No recipes with categories found"
+                        : activeCategory === "Ingredients"
+                        ? "No recipes with ingredients found"
+                        : "Recipes will appear here once they're posted"}
                     </ThemedText>
                   </View>
                 ) : (
                   <View style={styles.recipeGrid}>
-                    {recipes.map((recipe) => (
+                    {filteredRecipes.map((recipe) => (
                       <TouchableOpacity
                         key={recipe.id}
                         style={styles.recipeCard}
+                        onPress={() => {
+                          const recipeId = recipe.id || (recipe as any)._id;
+                          if (recipeId) {
+                            router.push(`/recipe/${recipeId}` as any);
+                          }
+                        }}
                       >
                         <View style={styles.recipeImageContainer}>
                           {recipe.image ? (
