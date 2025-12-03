@@ -32,12 +32,15 @@ export function RecipesProvider({ children }: { children: ReactNode }) {
   // Fetch recipes on mount and when user changes
   useEffect(() => {
     if (user) {
-      refreshRecipes({ user_id: user.id });
+      const userId = user.id || user._id;
+      if (userId) {
+        refreshRecipes({ user_id: userId });
+      }
     } else {
       setMyRecipes([]);
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, user?._id]);
 
   const refreshRecipes = async (params?: RecipeQueryParams) => {
     try {
@@ -62,7 +65,38 @@ export function RecipesProvider({ children }: { children: ReactNode }) {
   const addRecipe = async (recipe: Partial<Recipe>) => {
     try {
       setError(null);
-      const newRecipe = await createRecipe(recipe);
+      
+      // Ensure required fields are present
+      // Backend requires: title, user_id, category_id
+      const userId = user?.id || user?._id || '';
+      const recipeData: any = {
+        ...recipe,
+        title: recipe.title || recipe.name || '',
+        user_id: userId,
+        category_id: recipe.category_id || '',
+      };
+      
+      console.log('Recipe data being sent:', { 
+        title: recipeData.title, 
+        user_id: recipeData.user_id, 
+        category_id: recipeData.category_id,
+        hasUser: !!user 
+      });
+      
+      // Validate required fields
+      if (!recipeData.title) {
+        throw new Error('Recipe title is required');
+      }
+      if (!recipeData.user_id) {
+        throw new Error('User ID is required. Please make sure you are logged in.');
+      }
+      if (!recipeData.category_id) {
+        throw new Error('Category ID is required');
+      }
+      
+      console.log('Creating recipe with data:', recipeData);
+      
+      const newRecipe = await createRecipe(recipeData);
       // Map API response
       const mappedRecipe = {
         ...newRecipe,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -16,17 +16,7 @@ import { Image } from "expo-image";
 import { ThemedText } from "@/components/themed-text";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRecipes } from "@/contexts/RecipesContext";
-
-// Default categories matching index.tsx
-const defaultCategories = [
-  { id: "2", name: "Breakfast", icon: "coffee" },
-  { id: "3", name: "Lunch", icon: "bowl-mix" },
-  { id: "4", name: "Dinner", icon: "silverware-fork-knife" },
-  { id: "5", name: "Dessert", icon: "cupcake" },
-  { id: "6", name: "Snacks", icon: "cookie" },
-  { id: "7", name: "Vegetarian", icon: "leaf" },
-  { id: "8", name: "Vegan", icon: "sprout" },
-];
+import { getCategories, Category } from "@/services/categories";
 
 const difficultyOptions = ["Easy", "Medium", "Hard"];
 
@@ -35,13 +25,39 @@ export default function CameraScreen() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [currentImageUri, setCurrentImageUri] = useState<string | null>(null);
-  const [categories] = useState(defaultCategories);
+  const [categories, setCategories] = useState<Array<Category & { icon?: string }>>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const insets = useSafeAreaInsets();
+
+  // Fetch categories from API
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      setIsLoadingCategories(true);
+      const apiCategories = await getCategories();
+      // Map API categories and add icon field
+      const mappedCategories = apiCategories.map((cat) => ({
+        ...cat,
+        id: cat.id || cat._id || String(Date.now() + Math.random()),
+        name: cat.categoryName || cat.name || "",
+        icon: "food", // Default icon
+      }));
+      setCategories(mappedCategories);
+    } catch (error: any) {
+      console.error("Error fetching categories:", error);
+      Alert.alert("Error", "Failed to load categories");
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
 
   // Recipe form state - matching index.tsx
   const [recipeName, setRecipeName] = useState("");
   const [recipeDescription, setRecipeDescription] = useState("");
-  const [recipeCategory, setRecipeCategory] = useState("");
   const [recipeTime, setRecipeTime] = useState("");
   const [recipeDifficulty, setRecipeDifficulty] = useState("Easy");
   const [recipeCalories, setRecipeCalories] = useState("");
@@ -122,7 +138,7 @@ export default function CameraScreen() {
       Alert.alert("Error", "Please enter a recipe description");
       return;
     }
-    if (!recipeCategory) {
+    if (!selectedCategoryId) {
       Alert.alert("Error", "Please select a category");
       return;
     }
@@ -138,14 +154,16 @@ export default function CameraScreen() {
     setIsSubmitting(true);
 
     // Create new recipe
+    // Note: user_id will be added automatically by RecipesContext
     const newRecipe = {
       id: String(Date.now()),
       name: recipeName.trim(),
       date: new Date().toISOString().split("T")[0],
       image: currentImageUri,
-      title: recipeName.trim(),
+      title: recipeName.trim(), // Backend requires 'title'
       description: recipeDescription.trim(),
-      category_id: recipeCategory,
+      category_id: selectedCategoryId, // Backend requires 'category_id' (must be ObjectId, not name)
+      // user_id will be added automatically by addRecipe function
     };
 
     // Add to My Recipes context
@@ -163,7 +181,7 @@ export default function CameraScreen() {
   const resetRecipeForm = () => {
     setRecipeName("");
     setRecipeDescription("");
-    setRecipeCategory("");
+    setSelectedCategoryId("");
     setRecipeTime("");
     setRecipeDifficulty("Easy");
     setRecipeCalories("");
@@ -352,10 +370,12 @@ export default function CameraScreen() {
                   <ThemedText
                     style={[
                       styles.input,
-                      !recipeCategory && styles.placeholderText,
+                      !selectedCategoryId && styles.placeholderText,
                     ]}
                   >
-                    {recipeCategory || "Select a category"}
+                    {selectedCategoryId 
+                      ? categories.find(c => c.id === selectedCategoryId)?.name || "Selected"
+                      : "Select a category"}
                   </ThemedText>
                   <Ionicons
                     name={showCategoryPicker ? "chevron-up" : "chevron-down"}
@@ -365,39 +385,49 @@ export default function CameraScreen() {
                 </TouchableOpacity>
                 {showCategoryPicker && (
                   <View style={styles.pickerContainer}>
-                    {categories.map((category) => (
-                      <TouchableOpacity
-                        key={category.id}
-                        style={[
-                          styles.pickerOption,
-                          recipeCategory === category.name &&
-                            styles.pickerOptionActive,
-                        ]}
-                        onPress={() => {
-                          setRecipeCategory(category.name);
-                          setShowCategoryPicker(false);
-                        }}
-                      >
-                        <MaterialCommunityIcons
-                          name={category.icon as any}
-                          size={18}
-                          color={
-                            recipeCategory === category.name
-                              ? "#1a4d2e"
-                              : "#fff"
-                          }
-                        />
-                        <ThemedText
+                    {isLoadingCategories ? (
+                      <ThemedText style={styles.pickerOptionText}>
+                        Loading categories...
+                      </ThemedText>
+                    ) : categories.length === 0 ? (
+                      <ThemedText style={styles.pickerOptionText}>
+                        No categories available
+                      </ThemedText>
+                    ) : (
+                      categories.map((category) => (
+                        <TouchableOpacity
+                          key={category.id}
                           style={[
-                            styles.pickerOptionText,
-                            recipeCategory === category.name &&
-                              styles.pickerOptionTextActive,
+                            styles.pickerOption,
+                            selectedCategoryId === category.id &&
+                              styles.pickerOptionActive,
                           ]}
+                          onPress={() => {
+                            setSelectedCategoryId(category.id);
+                            setShowCategoryPicker(false);
+                          }}
                         >
-                          {category.name}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    ))}
+                          <MaterialCommunityIcons
+                            name={(category.icon || "food") as any}
+                            size={18}
+                            color={
+                              selectedCategoryId === category.id
+                                ? "#1a4d2e"
+                                : "#fff"
+                            }
+                          />
+                          <ThemedText
+                            style={[
+                              styles.pickerOptionText,
+                              selectedCategoryId === category.id &&
+                                styles.pickerOptionTextActive,
+                            ]}
+                          >
+                            {category.name || category.categoryName}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      ))
+                    )}
                   </View>
                 )}
               </View>

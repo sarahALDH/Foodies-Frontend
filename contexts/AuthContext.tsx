@@ -27,17 +27,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = async () => {
     try {
       const token = await getToken();
+      console.log('Token check on app start:', token ? 'Token exists' : 'No token found');
+      
       if (token) {
         // Token exists, try to get current user
         try {
+          console.log('Attempting to get current user with stored token...');
           const currentUser = await getCurrentUser();
+          console.log('Current user retrieved:', currentUser);
           setUser(currentUser);
-        } catch (error) {
-          // Token might be invalid, clear it
-          console.error('Failed to get current user:', error);
-          setUser(null);
+          console.log('User state set, isAuthenticated should now be:', !!currentUser);
+        } catch (error: any) {
+          // Token might be invalid, but don't clear it immediately
+          console.error('Failed to get current user:', error?.message || error);
+          // Only clear token if it's a 401 (unauthorized)
+          if (error?.response?.status === 401 || error?.statusCode === 401) {
+            console.log('Token is invalid (401), clearing...');
+            setUser(null);
+          } else {
+            // For other errors, keep the token but set user to null
+            console.log('Error getting user, but keeping token for retry');
+            setUser(null);
+          }
         }
       } else {
+        console.log('No token found, user not authenticated');
         setUser(null);
       }
     } catch (error) {
@@ -53,15 +67,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const response = await apiLogin({ email, password });
       
-      if (response.token && response.user) {
+      console.log('Login response in context:', response);
+      
+      // Handle different response structures
+      if (response.user) {
         setUser(response.user);
         router.replace('/(tabs)');
-      } else if (response.user) {
-        // If user is returned but no token, still set user
-        setUser(response.user);
-        router.replace('/(tabs)');
+      } else if (response.token) {
+        // If we have a token but no user, try to get the user
+        try {
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+          router.replace('/(tabs)');
+        } catch (error) {
+          console.error('Failed to get user after login:', error);
+          throw new Error('Login successful but failed to retrieve user data');
+        }
       } else {
-        throw new Error('Login failed: No user data received');
+        throw new Error('Login failed: No user data or token received');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -76,15 +99,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const response = await apiRegister({ name, email, password });
       
-      if (response.token && response.user) {
+      console.log('Register response in context:', response);
+      
+      // Handle different response structures
+      if (response.user) {
         setUser(response.user);
         router.replace('/(tabs)');
-      } else if (response.user) {
-        // If user is returned but no token, still set user
-        setUser(response.user);
-        router.replace('/(tabs)');
+      } else if (response.token) {
+        // If we have a token but no user, try to get the user
+        try {
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+          router.replace('/(tabs)');
+        } catch (error) {
+          console.error('Failed to get user after registration:', error);
+          // If getting user fails, try to login
+          await login(email, password);
+        }
       } else {
-        // If no user in response, try to login
+        // If no user or token in response, try to login
         await login(email, password);
       }
     } catch (error: any) {

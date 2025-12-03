@@ -9,8 +9,12 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000, // Increased timeout for network requests
+  validateStatus: (status) => status < 500, // Don't throw on 4xx errors
 });
+
+// Log the base URL for debugging
+console.log('Axios instance created with baseURL:', config.API_BASE_URL);
 
 // Token storage keys
 const TOKEN_KEY = 'auth_token';
@@ -57,11 +61,31 @@ api.interceptors.response.use(
     }
 
     // Format error message for user-friendly display
-    const errorMessage = 
+    let errorMessage = 
       (error.response?.data as any)?.message ||
       (error.response?.data as any)?.error ||
       error.message ||
       'An unexpected error occurred';
+
+    // Handle network errors with more helpful messages
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      const fullUrl = error.config ? `${error.config.baseURL}${error.config.url}` : 'unknown';
+      errorMessage = `Cannot connect to server at ${config.API_BASE_URL}. Please check:\n\n` +
+        `• Your device/emulator is connected to the internet\n` +
+        `• The server is running and accessible\n` +
+        `• If using Android emulator, try using 10.0.2.2 instead of localhost\n` +
+        `• If using physical device, ensure it's on the same network\n` +
+        `• Check firewall settings if testing locally`;
+      
+      console.error('Network Error Details:', {
+        baseURL: config.API_BASE_URL,
+        url: error.config?.url,
+        fullUrl,
+        error: error.message,
+        code: error.code,
+        platform: require('react-native').Platform.OS,
+      });
+    }
 
     return Promise.reject({
       ...error,
@@ -74,6 +98,14 @@ api.interceptors.response.use(
 export const storeToken = async (token: string): Promise<void> => {
   try {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
+    console.log('Token stored in SecureStore successfully');
+    // Verify it was stored
+    const stored = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (stored === token) {
+      console.log('Token verification: Successfully stored and retrieved');
+    } else {
+      console.warn('Token verification: Stored token does not match!');
+    }
   } catch (error) {
     console.error('Error storing token:', error);
     throw error;
@@ -83,7 +115,9 @@ export const storeToken = async (token: string): Promise<void> => {
 // Helper function to get token
 export const getToken = async (): Promise<string | null> => {
   try {
-    return await SecureStore.getItemAsync(TOKEN_KEY);
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    console.log('Token retrieved from SecureStore:', token ? 'Token found' : 'No token');
+    return token;
   } catch (error) {
     console.error('Error retrieving token:', error);
     return null;

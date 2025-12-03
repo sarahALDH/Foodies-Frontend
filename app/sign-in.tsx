@@ -38,7 +38,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const isLoading = useNavigationLoading();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Animation values
   const mushroom1Y = useSharedValue(0);
@@ -54,6 +54,14 @@ export default function HomeScreen() {
       headerShown: false,
     });
   }, [navigation]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      console.log('User already authenticated, redirecting from sign-in to tabs...');
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, authLoading]);
 
   // Start animations
   useEffect(() => {

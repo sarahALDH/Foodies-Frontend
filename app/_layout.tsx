@@ -19,9 +19,7 @@ const forFade = ({ current }: { current: { progress: number } }) => ({
   },
 });
 
-export const unstable_settings = {
-  initialRouteName: "sign-in",
-};
+// Note: initialRouteName is handled by app/index.tsx based on auth state
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -34,7 +32,7 @@ export default function RootLayout() {
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
           <Stack
-            initialRouteName="sign-in"
+            initialRouteName="index"
             screenOptions={{
               headerShown: false,
               // Use fade transition to avoid darkening overlay

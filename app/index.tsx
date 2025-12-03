@@ -1,27 +1,37 @@
 import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
-import React from "react";
-import { Redirect } from "expo-router";
+import React, { useEffect, useRef } from "react";
+import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 
 const index = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const hasRedirected = useRef(false);
 
-  // Show loading indicator while checking auth
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#fff" />
-      </View>
-    );
-  }
+  // Handle redirect based on auth state
+  useEffect(() => {
+    console.log('Index redirect check:', { isLoading, isAuthenticated, user: user ? 'exists' : 'null', hasRedirected: hasRedirected.current });
+    
+    // Only redirect once and when loading is complete
+    if (!isLoading && !hasRedirected.current) {
+      hasRedirected.current = true;
+      
+      if (isAuthenticated || user) {
+        console.log('User is authenticated, redirecting to tabs...', { isAuthenticated, hasUser: !!user });
+        // Use immediate redirect without delay
+        router.replace('/(tabs)');
+      } else {
+        console.log('User is not authenticated, redirecting to sign-in...', { isAuthenticated, hasUser: !!user });
+        router.replace('/sign-in');
+      }
+    }
+  }, [isAuthenticated, isLoading, user]);
 
-  // If user is logged in, redirect to home screen
-  // Otherwise, redirect to sign in screen
-  if (isAuthenticated) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  return <Redirect href="/sign-in" />;
+  // Show loading indicator while checking auth or during redirect
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#fff" />
+    </View>
+  );
 };
 
 export default index;

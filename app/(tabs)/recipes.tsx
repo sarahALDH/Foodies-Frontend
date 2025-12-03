@@ -121,7 +121,28 @@ export default function RecipesScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        setRecipes(data);
+        console.log('Recipes screen API response:', JSON.stringify(data, null, 2));
+        
+        // Handle different response structures
+        let recipesArray: RecipeType[] = [];
+        if (Array.isArray(data)) {
+          recipesArray = data;
+        } else if (data?.data && Array.isArray(data.data)) {
+          recipesArray = data.data;
+        } else if (data?.recipes && Array.isArray(data.recipes)) {
+          recipesArray = data.recipes;
+        } else {
+          console.warn('Unexpected recipes response structure:', data);
+          recipesArray = [];
+        }
+        
+        // Map _id to id if needed
+        const mappedRecipes = recipesArray.map((recipe: any) => ({
+          ...recipe,
+          id: recipe.id || recipe._id || String(Date.now() + Math.random()),
+        }));
+        
+        setRecipes(mappedRecipes);
         setError(null);
       } else {
         // Fallback to mock data if API fails
@@ -129,6 +150,7 @@ export default function RecipesScreen() {
         setError("Failed to load recipes. Showing demo data.");
       }
     } catch (err) {
+      console.error('Error fetching recipes:', err);
       // Fallback to mock data on error
       setRecipes(mockRecipes);
       setError("Unable to connect to server. Showing demo data.");
@@ -192,6 +214,13 @@ export default function RecipesScreen() {
               <ThemedText style={styles.emptyText}>No recipes found</ThemedText>
               <ThemedText style={styles.emptySubtext}>
                 Start creating recipes to see them here!
+              </ThemedText>
+            </View>
+          ) : !Array.isArray(recipes) ? (
+            <View style={styles.emptyContainer}>
+              <ThemedText style={styles.emptyText}>Error loading recipes</ThemedText>
+              <ThemedText style={styles.emptySubtext}>
+                Please try refreshing
               </ThemedText>
             </View>
           ) : (

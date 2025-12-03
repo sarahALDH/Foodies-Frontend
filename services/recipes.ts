@@ -22,8 +22,21 @@ export interface RecipeQueryParams {
 
 // Get all recipes (supports query params)
 export const getRecipes = async (params?: RecipeQueryParams): Promise<Recipe[]> => {
-  const response = await api.get<Recipe[]>('/api/recipes', { params });
-  return response.data;
+  const response = await api.get<any>('/api/recipes', { params });
+  console.log('Recipes API response:', JSON.stringify(response.data, null, 2));
+  
+  // Handle different response structures
+  const data = response.data;
+  if (Array.isArray(data)) {
+    return data;
+  } else if (data?.data && Array.isArray(data.data)) {
+    return data.data;
+  } else if (data?.recipes && Array.isArray(data.recipes)) {
+    return data.recipes;
+  } else {
+    console.warn('Unexpected recipes response structure:', data);
+    return [];
+  }
 };
 
 // Get recipe by ID

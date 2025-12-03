@@ -83,9 +83,19 @@ export default function HomeScreen() {
     try {
       setIsLoadingCategories(true);
       const apiCategories = await getCategories();
+      
+      // Ensure apiCategories is an array
+      if (!Array.isArray(apiCategories)) {
+        console.error("Categories response is not an array:", apiCategories);
+        setCategories([ALL_CATEGORY]);
+        return;
+      }
+      
       // Map API categories and add icon field (using first letter or default)
+      // Backend uses _id, so map it to id for frontend
       const mappedCategories = apiCategories.map((cat) => ({
         ...cat,
+        id: cat.id || cat._id || String(Date.now() + Math.random()), // Use _id if id doesn't exist
         name: cat.categoryName || cat.name || "",
         icon: "food", // Default icon, can be enhanced later
       }));
@@ -93,6 +103,7 @@ export default function HomeScreen() {
     } catch (error: any) {
       console.error("Error fetching categories:", error);
       Alert.alert("Error", "Failed to load categories");
+      setCategories([ALL_CATEGORY]); // Set default "All" category on error
     } finally {
       setIsLoadingCategories(false);
     }
@@ -112,9 +123,19 @@ export default function HomeScreen() {
       }
       
       const apiRecipes = await getRecipes(params);
+      
+      // Ensure apiRecipes is an array
+      if (!Array.isArray(apiRecipes)) {
+        console.error("Recipes response is not an array:", apiRecipes);
+        setRecipes([]);
+        return;
+      }
+      
       // Map API recipes to match our format
+      // Backend uses _id, so map it to id for frontend
       const mappedRecipes = apiRecipes.map((recipe) => ({
         ...recipe,
+        id: recipe.id || recipe._id || String(Date.now() + Math.random()), // Use _id if id doesn't exist
         name: recipe.title || recipe.name,
         category: recipe.category_id || "",
         dateAdded: recipe.date || recipe.createdAt || new Date().toISOString(),
@@ -123,6 +144,7 @@ export default function HomeScreen() {
     } catch (error: any) {
       console.error("Error fetching recipes:", error);
       Alert.alert("Error", "Failed to load recipes");
+      setRecipes([]); // Set empty array on error
     } finally {
       setIsLoadingRecipes(false);
     }

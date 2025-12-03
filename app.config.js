@@ -21,7 +21,9 @@ module.exports = {
         monochromeImage: "./assets/images/android-icon-monochrome.png"
       },
       edgeToEdgeEnabled: true,
-      predictiveBackGestureEnabled: false
+      predictiveBackGestureEnabled: false,
+      usesCleartextTraffic: true,
+      networkSecurityConfig: "./network_security_config.xml"
     },
     web: {
       output: "static",
