@@ -721,7 +721,7 @@ export default function RecipeDetailScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Header with back button */}
+          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
@@ -729,6 +729,32 @@ export default function RecipeDetailScreen() {
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Image
+                source={require("@/assets/images/logo2.png")}
+                style={styles.headerLogo}
+                contentFit="contain"
+              />
+            </View>
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => {
+                  const recipeId = recipe?.id || (recipe as any)?._id;
+                  if (recipeId) {
+                    router.push(`/editRecipe?recipeId=${recipeId}` as any);
+                  }
+                }}
+              >
+                <Ionicons name="create-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => router.push("/deleteRecipe" as any)}
+              >
+                <ThemedText style={styles.deleteButtonText}>🗑️</ThemedText>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Recipe Info */}

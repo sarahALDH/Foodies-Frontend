@@ -67,6 +67,20 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="deleteRecipe"
+                options={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: "transparent" },
+                }}
+              />
+              <Stack.Screen
+                name="editRecipe"
+                options={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: "transparent" },
+                }}
+              />
+              <Stack.Screen
                 name="modal"
                 options={{
                   presentation: "modal",

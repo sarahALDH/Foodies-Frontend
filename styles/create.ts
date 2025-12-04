@@ -56,6 +56,15 @@ export const styles = StyleSheet.create({
   headerLeft: {
     width: 40,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerLogo: {
+    width: 200,
+    height: 100,
+  },
   backButton: {
     padding: 8,
   },
