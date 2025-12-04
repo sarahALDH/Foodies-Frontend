@@ -8,6 +8,7 @@ import {
   getCategories,
   getCategoryById,
 } from "@/services/categories";
+import { getRatings } from "@/services/ratings";
 import { getRecipes, Recipe } from "@/services/recipes";
 import { styles } from "@/styles/home";
 import { getImageUrl } from "@/utils/imageUtils";
@@ -32,7 +33,7 @@ import {
 } from "react-native-safe-area-context";
 
 // Default "All" category (not stored in backend)
-const ALL_CATEGORY = { id: "all", name: "All", icon: "food" };
+const ALL_CATEGORY = { id: "all", name: "All", icon: "apps" };
 
 // Available icons for category selection
 const availableIcons = [
@@ -60,6 +61,9 @@ export default function HomeScreen() {
     Array<Category & { icon?: string }>
   >([ALL_CATEGORY]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipeRatings, setRecipeRatings] = useState<Record<string, number>>(
+    {}
+  );
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showAllRecipesModal, setShowAllRecipesModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -243,6 +247,32 @@ export default function HomeScreen() {
 
       const mappedRecipes = await Promise.all(mappedRecipesPromises);
       setRecipes(mappedRecipes);
+
+      // Fetch ratings for all recipes
+      const ratingsMap: Record<string, number> = {};
+      await Promise.all(
+        mappedRecipes.map(async (recipe) => {
+          const recipeId = recipe.id || (recipe as any)._id;
+          if (recipeId) {
+            try {
+              const ratings = await getRatings({ recipe_id: recipeId });
+              if (ratings.length > 0) {
+                const sum = ratings.reduce(
+                  (acc, rating) => acc + (rating.rating || 0),
+                  0
+                );
+                ratingsMap[recipeId] = sum / ratings.length;
+              }
+            } catch (error) {
+              console.error(
+                `Error fetching ratings for recipe ${recipeId}:`,
+                error
+              );
+            }
+          }
+        })
+      );
+      setRecipeRatings(ratingsMap);
     } catch (error: any) {
       console.error("Error fetching recipes:", error);
       Alert.alert("Error", "Failed to load recipes");
@@ -360,6 +390,15 @@ export default function HomeScreen() {
       >
         {/* Categories Scroll View */}
         <View style={styles.categoriesSection}>
+          <View style={styles.categoriesHeader}>
+            <ThemedText style={styles.categoriesTitle}>Categories</ThemedText>
+            <TouchableOpacity
+              style={styles.addCategoryButton}
+              onPress={() => setShowCategoryModal(true)}
+            >
+              <Ionicons name="add-circle" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -368,40 +407,49 @@ export default function HomeScreen() {
             {isLoadingCategories ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              categories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryChip,
-                    selectedCategory === category.id &&
-                      styles.categoryChipActive,
-                  ]}
-                  onPress={() => setSelectedCategory(category.id)}
-                >
-                  <MaterialCommunityIcons
-                    name={(category.icon || "food") as any}
-                    size={20}
-                    color={selectedCategory === category.id ? "#fff" : "#fff"}
-                  />
-                  <ThemedText
+              categories.map((category) => {
+                const categoryName =
+                  category.name || category.categoryName || "";
+                const isActive = selectedCategory === category.id;
+
+                return (
+                  <TouchableOpacity
+                    key={category.id}
                     style={[
-                      styles.categoryText,
-                      selectedCategory === category.id &&
-                        styles.categoryTextActive,
+                      styles.categoryChip,
+                      isActive && styles.categoryChipActive,
                     ]}
+                    onPress={() => setSelectedCategory(category.id)}
+                    activeOpacity={0.8}
                   >
-                    {category.name || category.categoryName || ""}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))
+                    {isActive && <View style={styles.categoryActiveGlow} />}
+                    <View
+                      style={[
+                        styles.categoryIconContainer,
+                        isActive && styles.categoryIconContainerActive,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={(category.icon || "food") as any}
+                        size={32}
+                        color={
+                          isActive ? "#0d2818" : "rgba(255, 255, 255, 0.9)"
+                        }
+                      />
+                    </View>
+                    <ThemedText
+                      style={[
+                        styles.categoryText,
+                        isActive && styles.categoryTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {categoryName}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })
             )}
-            {/* Add Category Button */}
-            <TouchableOpacity
-              style={styles.addCategoryButton}
-              onPress={() => setShowCategoryModal(true)}
-            >
-              <Ionicons name="add" size={24} color="#fff" />
-            </TouchableOpacity>
           </ScrollView>
         </View>
 
@@ -537,6 +585,23 @@ export default function HomeScreen() {
                         {categoryElements}
                       </View>
                     ) : null;
+                  })()}
+
+                  {/* Rating Display */}
+                  {(() => {
+                    const recipeId = recipe.id || (recipe as any)._id;
+                    const averageRating = recipeRatings[recipeId];
+                    if (averageRating && averageRating > 0) {
+                      return (
+                        <View style={styles.recipeRating}>
+                          <Ionicons name="star" size={16} color="#ffa500" />
+                          <ThemedText style={styles.recipeRatingText}>
+                            {averageRating.toFixed(1)}
+                          </ThemedText>
+                        </View>
+                      );
+                    }
+                    return null;
                   })()}
                 </View>
               </TouchableOpacity>

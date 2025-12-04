@@ -2,51 +2,119 @@ import { PageSkeleton } from "@/components/skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigationLoading } from "@/hooks/use-navigation-loading";
+import {
+  getNotifications,
+  markNotificationAsRead,
+  Notification,
+} from "@/services/notifications";
 import { styles } from "@/styles/notifications";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-// Mock notifications data
-const mockNotifications = [
-  {
-    id: "1",
-    type: "recipe",
-    title: "New Recipe Available",
-    message: "Check out the new Homemade Pasta recipe!",
-    time: "2 hours ago",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "like",
-    title: "Someone liked your recipe",
-    message: "Your Chocolate Cake recipe received a like",
-    time: "5 hours ago",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "comment",
-    title: "New comment on your recipe",
-    message: "Great recipe! Thanks for sharing.",
-    time: "1 day ago",
-    read: true,
-  },
-  {
-    id: "4",
-    type: "recipe",
-    title: "Recipe suggestion",
-    message: "You might like this Grilled Salmon recipe",
-    time: "2 days ago",
-    read: true,
-  },
-];
 
 export default function NotificationsScreen() {
   const isLoading = useNavigationLoading();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
+
+  const fetchNotifications = async () => {
+    if (!user) {
+      setIsLoadingNotifications(false);
+      return;
+    }
+
+    try {
+      setIsLoadingNotifications(true);
+      const userId = user._id || (user as any)?.id;
+      if (userId) {
+        const fetchedNotifications = await getNotifications({
+          user_id: userId,
+        });
+        // Sort by creation date, newest first
+        const sorted = fetchedNotifications.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        setNotifications(sorted);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      setNotifications([]);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [user]);
+
+  // Refresh notifications when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifications();
+    }, [user])
+  );
+
+  const handleNotificationPress = async (notification: Notification) => {
+    const notificationId = notification.id || notification._id;
+    if (notificationId && !notification.read) {
+      try {
+        await markNotificationAsRead(notificationId);
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((n) =>
+            (n.id || n._id) === notificationId ? { ...n, read: true } : n
+          )
+        );
+      } catch (error) {
+        console.error("Error marking notification as read:", error);
+      }
+    }
+
+    // Navigate to recipe if it's a rating notification
+    if (notification.type === "rating" && notification.recipe_id) {
+      // You can add navigation here if needed
+      // router.push(`/recipe/${notification.recipe_id}`);
+    }
+  };
+
+  const formatTime = (dateString?: string) => {
+    if (!dateString) return "Just now";
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      if (diffInSeconds < 60) return "Just now";
+      if (diffInSeconds < 3600)
+        return `${Math.floor(diffInSeconds / 60)} minute${
+          Math.floor(diffInSeconds / 60) !== 1 ? "s" : ""
+        } ago`;
+      if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)} hour${
+          Math.floor(diffInSeconds / 3600) !== 1 ? "s" : ""
+        } ago`;
+      if (diffInSeconds < 604800)
+        return `${Math.floor(diffInSeconds / 86400)} day${
+          Math.floor(diffInSeconds / 86400) !== 1 ? "s" : ""
+        } ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return "Recently";
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -102,7 +170,14 @@ export default function NotificationsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {mockNotifications.length === 0 ? (
+          {isLoadingNotifications ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color="#fff" />
+              <ThemedText style={styles.emptyText}>
+                Loading notifications...
+              </ThemedText>
+            </View>
+          ) : notifications.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons
                 name="notifications-outline"
@@ -116,35 +191,40 @@ export default function NotificationsScreen() {
             </View>
           ) : (
             <View style={styles.notificationsList}>
-              {mockNotifications.map((notification, index) => (
-                <TouchableOpacity
-                  key={notification.id}
-                  style={[
-                    styles.notificationItem,
-                    !notification.read && styles.unreadItem,
-                  ]}
-                >
-                  <View style={styles.notificationContent}>
-                    <View style={styles.notificationHeader}>
-                      <ThemedText
-                        style={[
-                          styles.notificationTitle,
-                          !notification.read && styles.unreadTitle,
-                        ]}
-                      >
-                        {notification.title}
+              {notifications.map((notification) => {
+                const notificationId = notification.id || notification._id;
+                const isRead = notification.read || false;
+                return (
+                  <TouchableOpacity
+                    key={notificationId || `notification-${Math.random()}`}
+                    style={[
+                      styles.notificationItem,
+                      !isRead && styles.unreadItem,
+                    ]}
+                    onPress={() => handleNotificationPress(notification)}
+                  >
+                    <View style={styles.notificationContent}>
+                      <View style={styles.notificationHeader}>
+                        <ThemedText
+                          style={[
+                            styles.notificationTitle,
+                            !isRead && styles.unreadTitle,
+                          ]}
+                        >
+                          {notification.title}
+                        </ThemedText>
+                        {!isRead && <View style={styles.unreadDot} />}
+                      </View>
+                      <ThemedText style={styles.notificationMessage}>
+                        {notification.message}
                       </ThemedText>
-                      {!notification.read && <View style={styles.unreadDot} />}
+                      <ThemedText style={styles.notificationTime}>
+                        {formatTime(notification.createdAt)}
+                      </ThemedText>
                     </View>
-                    <ThemedText style={styles.notificationMessage}>
-                      {notification.message}
-                    </ThemedText>
-                    <ThemedText style={styles.notificationTime}>
-                      {notification.time}
-                    </ThemedText>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </ScrollView>

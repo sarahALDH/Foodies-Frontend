@@ -251,4 +251,47 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "600",
   },
+  ratingSection: {
+    marginTop: 16,
+    gap: 12,
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+  },
+  starsContainer: {
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+  },
+  starButton: {
+    padding: 4,
+  },
+  ratingInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  ratingText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#ffa500",
+  },
+  ratingCountText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    fontWeight: "500",
+  },
+  ratingHint: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
+    fontStyle: "italic",
+  },
+  userRatingText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+    fontWeight: "600",
+  },
 });

@@ -1,7 +1,11 @@
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/contexts/AuthContext";
 import { Category, createCategory, getCategories } from "@/services/categories";
-import { createIngredient, getIngredients, Ingredient } from "@/services/ingredients";
+import {
+  createIngredient,
+  getIngredients,
+  Ingredient,
+} from "@/services/ingredients";
 import { createRecipeIngredient } from "@/services/recipeIngredients";
 import { createRecipe } from "@/services/recipes";
 import { styles } from "@/styles/create";
@@ -37,9 +41,11 @@ export default function CreateScreen() {
   // Recipe form state
   const [recipeTitle, setRecipeTitle] = useState<string>("");
   const [recipeImage, setRecipeImage] = useState<string | null>(null);
-  const [recipeCategoryId, setRecipeCategoryId] = useState<string>("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [recipeDescription, setRecipeDescription] = useState<string>("");
-  const [selectedIngredientIds, setSelectedIngredientIds] = useState<string[]>([]);
+  const [selectedIngredientIds, setSelectedIngredientIds] = useState<string[]>(
+    []
+  );
   const [categories, setCategories] = useState<Category[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
@@ -53,7 +59,7 @@ export default function CreateScreen() {
 
   useEffect(() => {
     if (activeTab === "recipe") {
-    fetchCategories();
+      fetchCategories();
       fetchIngredients();
     }
   }, [activeTab]);
@@ -77,7 +83,10 @@ export default function CreateScreen() {
       // Ensure we always have an array
       if (Array.isArray(apiIngredients)) {
         setIngredients(apiIngredients);
-      } else if ((apiIngredients as any)?.data && Array.isArray((apiIngredients as any).data)) {
+      } else if (
+        (apiIngredients as any)?.data &&
+        Array.isArray((apiIngredients as any).data)
+      ) {
         setIngredients((apiIngredients as any).data);
       } else {
         setIngredients([]);
@@ -89,7 +98,6 @@ export default function CreateScreen() {
       setIsLoadingIngredients(false);
     }
   };
-
 
   const requestImagePermissions = async () => {
     if (Platform.OS !== "web") {
@@ -117,18 +125,18 @@ export default function CreateScreen() {
       let result;
       if (source === "camera") {
         result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
       }
 
       if (!result.canceled && result.assets[0]) {
@@ -156,8 +164,8 @@ export default function CreateScreen() {
       Alert.alert("Error", "Please select an image");
       return;
     }
-    if (!recipeCategoryId) {
-      Alert.alert("Error", "Please select a category");
+    if (selectedCategoryIds.length === 0) {
+      Alert.alert("Error", "Please select at least one category");
       return;
     }
     if (selectedIngredientIds.length === 0) {
@@ -174,14 +182,16 @@ export default function CreateScreen() {
     }
 
     try {
-    setIsSubmitting(true);
+      setIsSubmitting(true);
       const userId = user._id || (user as any)?.id;
       const recipeData: any = {
         title: recipeTitle.trim(),
-      description: recipeDescription.trim(),
+        description: recipeDescription.trim(),
         image: recipeImage,
         user_id: userId,
-        category_id: recipeCategoryId,
+        category_id: selectedCategoryIds[0], // Send first category for initial creation
+        // Note: You may need to update the recipe with additional categories after creation
+        // or modify the backend to accept an array of category_ids
       };
 
       const createdRecipe = await createRecipe(recipeData);
@@ -205,10 +215,10 @@ export default function CreateScreen() {
         {
           text: "OK",
           onPress: () => {
-    // Reset form
+            // Reset form
             setRecipeTitle("");
             setRecipeImage(null);
-            setRecipeCategoryId("");
+            setSelectedCategoryIds([]);
             setRecipeDescription("");
             setSelectedIngredientIds([]);
           },
@@ -218,7 +228,7 @@ export default function CreateScreen() {
       console.error("Error creating recipe:", error);
       Alert.alert("Error", error?.message || "Failed to create recipe");
     } finally {
-    setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -281,26 +291,26 @@ export default function CreateScreen() {
   };
 
   const renderRecipeForm = () => (
-          <ScrollView
+    <ScrollView
       style={styles.formScrollView}
       contentContainerStyle={styles.formContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.inputContainer}>
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.inputContainer}>
         <ThemedText style={styles.inputLabel}>Recipe Title *</ThemedText>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
             placeholder="Enter recipe title"
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            placeholderTextColor="rgba(255, 255, 255, 0.5)"
             value={recipeTitle}
             onChangeText={setRecipeTitle}
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
+            autoCapitalize="words"
+          />
+        </View>
+      </View>
 
-              <View style={styles.inputContainer}>
+      <View style={styles.inputContainer}>
         <ThemedText style={styles.inputLabel}>Image *</ThemedText>
         <TouchableOpacity
           style={styles.imagePickerButton}
@@ -318,7 +328,7 @@ export default function CreateScreen() {
               <ThemedText style={styles.imagePlaceholderText}>
                 Tap to add image
               </ThemedText>
-                </View>
+            </View>
           )}
         </TouchableOpacity>
         {recipeImage && (
@@ -329,70 +339,35 @@ export default function CreateScreen() {
             <ThemedText style={styles.removeImageText}>Remove Image</ThemedText>
           </TouchableOpacity>
         )}
-              </View>
+      </View>
 
-              <View style={styles.inputContainer}>
-        <ThemedText style={styles.inputLabel}>Category *</ThemedText>
+      <View style={styles.inputContainer}>
+        <ThemedText style={styles.inputLabel}>Categories *</ThemedText>
         {isLoadingCategories ? (
           <ActivityIndicator size="small" color="#fff" style={styles.loader} />
         ) : (
           <View style={styles.pickerContainer}>
-            {categories.map((category) => (
-                <TouchableOpacity
-                key={category.id || (category as any)._id}
-                style={[
-                  styles.pickerOption,
-                  (recipeCategoryId === (category as any)._id ||
-                    recipeCategoryId === category.id) &&
-                    styles.pickerOptionActive,
-                ]}
-                onPress={() =>
-                  setRecipeCategoryId(
-                    (category as any)._id || category.id || ""
-                  )
-                }
-                >
-                  <ThemedText
-                    style={[
-                    styles.pickerOptionText,
-                    (recipeCategoryId === category.id ||
-                      recipeCategoryId === (category as any)._id) &&
-                      styles.pickerOptionTextActive,
-                  ]}
-                >
-                  {category.categoryName || category.name || ""}
-                  </ThemedText>
-                </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.inputContainer}>
-        <ThemedText style={styles.inputLabel}>Ingredients *</ThemedText>
-        {isLoadingIngredients ? (
-          <ActivityIndicator size="small" color="#fff" style={styles.loader} />
-        ) : (
-                  <View style={styles.pickerContainer}>
-            {Array.isArray(ingredients) && ingredients.length > 0 ? (
-              ingredients.map((ingredient) => {
-                const ingredientId = ingredient.id || (ingredient as any)._id;
-              const isSelected = selectedIngredientIds.includes(ingredientId);
+            {categories.map((category) => {
+              const categoryId = (category as any)._id || category.id;
+              const isSelected = selectedCategoryIds.includes(categoryId);
               return (
-                        <TouchableOpacity
-                  key={ingredientId}
-                          style={[
-                            styles.pickerOption,
+                <TouchableOpacity
+                  key={categoryId}
+                  style={[
+                    styles.pickerOption,
                     styles.multiSelectOption,
                     isSelected && styles.pickerOptionActive,
-                          ]}
-                          onPress={() => {
+                  ]}
+                  onPress={() => {
                     if (isSelected) {
-                      setSelectedIngredientIds(
-                        selectedIngredientIds.filter((id) => id !== ingredientId)
+                      setSelectedCategoryIds(
+                        selectedCategoryIds.filter((id) => id !== categoryId)
                       );
                     } else {
-                      setSelectedIngredientIds([...selectedIngredientIds, ingredientId]);
+                      setSelectedCategoryIds([
+                        ...selectedCategoryIds,
+                        categoryId,
+                      ]);
                     }
                   }}
                 >
@@ -407,47 +382,111 @@ export default function CreateScreen() {
                         <Ionicons name="checkmark" size={16} color="#fff" />
                       )}
                     </View>
-                          <ThemedText
-                            style={[
-                              styles.pickerOptionText,
+                    <ThemedText
+                      style={[
+                        styles.pickerOptionText,
                         isSelected && styles.pickerOptionTextActive,
-                            ]}
-                          >
-                      {ingredient.name || ingredient.ingredientName || ""}
-                          </ThemedText>
+                      ]}
+                    >
+                      {category.categoryName || category.name || ""}
+                    </ThemedText>
                   </View>
-                        </TouchableOpacity>
+                </TouchableOpacity>
               );
-            })
+            })}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.inputContainer}>
+        <ThemedText style={styles.inputLabel}>Ingredients *</ThemedText>
+        {isLoadingIngredients ? (
+          <ActivityIndicator size="small" color="#fff" style={styles.loader} />
+        ) : (
+          <View style={styles.pickerContainer}>
+            {Array.isArray(ingredients) && ingredients.length > 0 ? (
+              ingredients.map((ingredient) => {
+                const ingredientId = ingredient.id || (ingredient as any)._id;
+                const isSelected = selectedIngredientIds.includes(ingredientId);
+                return (
+                  <TouchableOpacity
+                    key={ingredientId}
+                    style={[
+                      styles.pickerOption,
+                      styles.multiSelectOption,
+                      isSelected && styles.pickerOptionActive,
+                    ]}
+                    onPress={() => {
+                      if (isSelected) {
+                        setSelectedIngredientIds(
+                          selectedIngredientIds.filter(
+                            (id) => id !== ingredientId
+                          )
+                        );
+                      } else {
+                        setSelectedIngredientIds([
+                          ...selectedIngredientIds,
+                          ingredientId,
+                        ]);
+                      }
+                    }}
+                  >
+                    <View style={styles.checkboxContainer}>
+                      <View
+                        style={[
+                          styles.checkbox,
+                          isSelected && styles.checkboxChecked,
+                        ]}
+                      >
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={16} color="#fff" />
+                        )}
+                      </View>
+                      <ThemedText
+                        style={[
+                          styles.pickerOptionText,
+                          isSelected && styles.pickerOptionTextActive,
+                        ]}
+                      >
+                        {ingredient.name || ingredient.ingredientName || ""}
+                      </ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
             ) : (
               <View style={styles.emptyState}>
                 <ThemedText style={styles.emptyStateText}>
-                  No ingredients available. Create one in the Ingredient tab first.
+                  No ingredients available. Create one in the Ingredient tab
+                  first.
                 </ThemedText>
               </View>
-                    )}
-                  </View>
-                )}
-              </View>
+            )}
+          </View>
+        )}
+      </View>
 
       <View style={styles.inputContainer}>
         <ThemedText style={styles.inputLabel}>Steps / Directions *</ThemedText>
         <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
-                    <TextInput
+          <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Enter step-by-step instructions or directions..."
-                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            placeholderTextColor="rgba(255, 255, 255, 0.5)"
             value={recipeDescription}
             onChangeText={setRecipeDescription}
             multiline
             numberOfLines={6}
             textAlignVertical="top"
-                    />
-                  </View>
-                </View>
+          />
+        </View>
+      </View>
 
-                  <TouchableOpacity
-        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+      <TouchableOpacity
+        style={[
+          styles.submitButton,
+          isSubmitting && styles.submitButtonDisabled,
+        ]}
         onPress={handleCreateRecipe}
         disabled={isSubmitting}
       >
@@ -477,18 +516,23 @@ export default function CreateScreen() {
             onChangeText={setIngredientName}
             autoCapitalize="words"
           />
-                </View>
-              </View>
+        </View>
+      </View>
 
       <TouchableOpacity
-        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+        style={[
+          styles.submitButton,
+          isSubmitting && styles.submitButtonDisabled,
+        ]}
         onPress={handleCreateIngredient}
         disabled={isSubmitting}
       >
         {isSubmitting ? (
           <ActivityIndicator size="small" color="#1a4d2e" />
         ) : (
-          <ThemedText style={styles.submitButtonText}>Create Ingredient</ThemedText>
+          <ThemedText style={styles.submitButtonText}>
+            Create Ingredient
+          </ThemedText>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -500,29 +544,34 @@ export default function CreateScreen() {
       contentContainerStyle={styles.formContent}
       showsVerticalScrollIndicator={false}
     >
-              <View style={styles.inputContainer}>
+      <View style={styles.inputContainer}>
         <ThemedText style={styles.inputLabel}>Category Name *</ThemedText>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
             placeholder="Enter category name"
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+            placeholderTextColor="rgba(255, 255, 255, 0.5)"
             value={categoryName}
             onChangeText={setCategoryName}
             autoCapitalize="words"
-                  />
-                </View>
-              </View>
+          />
+        </View>
+      </View>
 
-              <TouchableOpacity
-        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+      <TouchableOpacity
+        style={[
+          styles.submitButton,
+          isSubmitting && styles.submitButtonDisabled,
+        ]}
         onPress={handleCreateCategory}
-                disabled={isSubmitting}
+        disabled={isSubmitting}
       >
         {isSubmitting ? (
           <ActivityIndicator size="small" color="#1a4d2e" />
         ) : (
-          <ThemedText style={styles.submitButtonText}>Create Category</ThemedText>
+          <ThemedText style={styles.submitButtonText}>
+            Create Category
+          </ThemedText>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -558,7 +607,9 @@ export default function CreateScreen() {
               <MaterialCommunityIcons
                 name="chef-hat"
                 size={20}
-                color={activeTab === "recipe" ? "#fff" : "rgba(255, 255, 255, 0.7)"}
+                color={
+                  activeTab === "recipe" ? "#fff" : "rgba(255, 255, 255, 0.7)"
+                }
               />
               <ThemedText
                 style={[
@@ -571,13 +622,20 @@ export default function CreateScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tab, activeTab === "ingredient" && styles.tabActive]}
+              style={[
+                styles.tab,
+                activeTab === "ingredient" && styles.tabActive,
+              ]}
               onPress={() => setActiveTab("ingredient")}
             >
               <MaterialCommunityIcons
                 name="carrot"
                 size={20}
-                color={activeTab === "ingredient" ? "#fff" : "rgba(255, 255, 255, 0.7)"}
+                color={
+                  activeTab === "ingredient"
+                    ? "#fff"
+                    : "rgba(255, 255, 255, 0.7)"
+                }
               />
               <ThemedText
                 style={[
@@ -596,7 +654,9 @@ export default function CreateScreen() {
               <MaterialCommunityIcons
                 name="tag"
                 size={20}
-                color={activeTab === "category" ? "#fff" : "rgba(255, 255, 255, 0.7)"}
+                color={
+                  activeTab === "category" ? "#fff" : "rgba(255, 255, 255, 0.7)"
+                }
               />
               <ThemedText
                 style={[
@@ -605,8 +665,8 @@ export default function CreateScreen() {
                 ]}
               >
                 Category
-                </ThemedText>
-              </TouchableOpacity>
+              </ThemedText>
+            </TouchableOpacity>
           </View>
 
           {/* Form Content */}
@@ -618,4 +678,3 @@ export default function CreateScreen() {
     </View>
   );
 }
-

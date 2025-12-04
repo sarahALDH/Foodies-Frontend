@@ -1,6 +1,13 @@
 import { ThemedText } from "@/components/themed-text";
 import { config } from "@/constants/config";
+import { useAuth } from "@/contexts/AuthContext";
 import { getCategoryById } from "@/services/categories";
+import { createNotification } from "@/services/notifications";
+import {
+  createOrUpdateRating,
+  getRatings,
+  getUserRatingForRecipe,
+} from "@/services/ratings";
 import { getIngredientsByRecipe } from "@/services/recipeIngredients";
 import { getRecipeById } from "@/services/recipes";
 import { getUserById } from "@/services/users";
@@ -13,6 +20,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   TouchableOpacity,
   View,
@@ -26,10 +34,16 @@ export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user, isAuthenticated } = useAuth();
   const [recipe, setRecipe] = useState<RecipeType | null>(null);
   const [recipeIngredients, setRecipeIngredients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [ratingCount, setRatingCount] = useState<number>(0);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
 
   useEffect(() => {
     // Handle both string and array formats from useLocalSearchParams
@@ -490,6 +504,9 @@ export default function RecipeDetailScreen() {
             );
             setRecipeIngredients([]);
           }
+
+          // Fetch ratings
+          await fetchRatings(recipeIdForIngredientsFallback);
         } else {
           throw new Error("Failed to fetch recipe");
         }
@@ -499,6 +516,105 @@ export default function RecipeDetailScreen() {
       setError("Failed to load recipe details");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchRatings = async (recipeId: string) => {
+    try {
+      const ratings = await getRatings({ recipe_id: recipeId });
+      setRatingCount(ratings.length);
+
+      if (ratings.length > 0) {
+        const sum = ratings.reduce(
+          (acc, rating) => acc + (rating.rating || 0),
+          0
+        );
+        setAverageRating(sum / ratings.length);
+      } else {
+        setAverageRating(0);
+      }
+
+      // Fetch user's rating if authenticated
+      if (isAuthenticated && user) {
+        const userId = user._id || (user as any)?.id;
+        if (userId) {
+          const userRatingData = await getUserRatingForRecipe(recipeId, userId);
+          if (userRatingData) {
+            setUserRating(userRatingData.rating);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching ratings:", error);
+    }
+  };
+
+  const handleRatingPress = async (rating: number) => {
+    if (!isAuthenticated || !user) {
+      Alert.alert(
+        "Authentication Required",
+        "Please sign in to rate recipes.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    if (!recipe) {
+      return;
+    }
+
+    try {
+      setIsSubmittingRating(true);
+      const userId = user._id || (user as any)?.id;
+      const recipeId = recipe.id || (recipe as any)._id;
+
+      if (!recipeId || !userId) {
+        throw new Error("Missing recipe or user ID");
+      }
+
+      // Get recipe owner ID
+      const recipeOwnerId =
+        recipe.user?._id ||
+        (recipe as any)?.user_id ||
+        (recipe as any)?.createdBy?._id ||
+        (recipe as any)?.createdBy?.id;
+
+      await createOrUpdateRating({
+        recipe_id: recipeId,
+        user_id: userId,
+        rating: rating,
+      });
+
+      setUserRating(rating);
+
+      // Refresh ratings to update average
+      await fetchRatings(recipeId);
+
+      // Create notification for recipe owner if they're different from the rater
+      if (recipeOwnerId && recipeOwnerId !== userId) {
+        try {
+          await createNotification({
+            user_id: recipeOwnerId,
+            type: "rating",
+            title: "New Rating on Your Recipe",
+            message: `Your recipe "${
+              recipe.title || "Untitled Recipe"
+            }" received a ${rating} star${rating !== 1 ? "s" : ""} rating!`,
+            recipe_id: recipeId,
+            read: false,
+          });
+        } catch (notificationError) {
+          console.error("Error creating notification:", notificationError);
+          // Don't fail the rating if notification creation fails
+        }
+      }
+
+      Alert.alert("Success", "Rating submitted successfully!");
+    } catch (error: any) {
+      console.error("Error submitting rating:", error);
+      Alert.alert("Error", error?.message || "Failed to submit rating");
+    } finally {
+      setIsSubmittingRating(false);
     }
   };
 
@@ -605,6 +721,58 @@ export default function RecipeDetailScreen() {
               <ThemedText style={styles.recipeTitle}>
                 {recipe.title || "Untitled Recipe"}
               </ThemedText>
+
+              {/* Rating Section */}
+              <View style={styles.ratingSection}>
+                <View style={styles.ratingContainer}>
+                  <View style={styles.starsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const displayRating =
+                        hoveredRating || userRating || averageRating;
+                      const isFilled = star <= Math.round(displayRating);
+                      return (
+                        <TouchableOpacity
+                          key={star}
+                          onPress={() => handleRatingPress(star)}
+                          onPressIn={() => setHoveredRating(star)}
+                          onPressOut={() => setHoveredRating(null)}
+                          disabled={isSubmittingRating || !isAuthenticated}
+                          style={styles.starButton}
+                        >
+                          <Ionicons
+                            name={isFilled ? "star" : "star-outline"}
+                            size={28}
+                            color={
+                              isFilled ? "#ffa500" : "rgba(255, 255, 255, 0.4)"
+                            }
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  {averageRating > 0 && (
+                    <View style={styles.ratingInfo}>
+                      <ThemedText style={styles.ratingText}>
+                        {averageRating.toFixed(1)}
+                      </ThemedText>
+                      <ThemedText style={styles.ratingCountText}>
+                        ({ratingCount}{" "}
+                        {ratingCount === 1 ? "rating" : "ratings"})
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+                {!isAuthenticated && (
+                  <ThemedText style={styles.ratingHint}>
+                    Sign in to rate this recipe
+                  </ThemedText>
+                )}
+                {isAuthenticated && userRating && (
+                  <ThemedText style={styles.userRatingText}>
+                    Your rating: {userRating} star{userRating !== 1 ? "s" : ""}
+                  </ThemedText>
+                )}
+              </View>
             </View>
 
             {/* Categories */}
