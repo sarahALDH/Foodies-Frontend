@@ -132,10 +132,22 @@ export default function SignUpScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 60 }]}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 80 }]}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
+            {/* Back Button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color="rgba(255, 255, 255, 0.9)"
+              />
+            </TouchableOpacity>
+
             {/* Logo with Creative Frame */}
             <View style={styles.logoContainer}>
               <View style={styles.logoFrame}>

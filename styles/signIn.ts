@@ -341,4 +341,18 @@ export const styles = StyleSheet.create({
   primaryButtonDisabled: {
     opacity: 0.6,
   },
+  backButton: {
+    position: "absolute",
+    top: 10,
+    left: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
 });
